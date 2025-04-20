@@ -2,7 +2,6 @@
 library(tidyverse)
 
 
-
 # Raw ---------------------------------------------------------------------
 
 db_con <- nba.dataRub::dh_createCon("cockroach")
@@ -38,8 +37,7 @@ df_plt <- map(1:nrow(df), \(x){
     select(season, team, player, acc_req, span)
 }) |> list_rbind() |> 
   left_join(df_season_dates, by = join_by(season, between(span, season_begin_date, season_end_date))) |> 
-  mutate(week = as.integer((span - season_begin_date) / 7) + 1) |> 
-  filter(week <= 10)
+  mutate(week = as.integer((span - season_begin_date) / 7) + 1)
 
 
 
@@ -52,18 +50,15 @@ df_plt <- map(1:nrow(df), \(x){
 
 df_p2 <- df_raw |> 
   mutate(week = as.integer((announcement_date - season_begin_date) / 7) + 1) |> 
-  filter(week <= 10) |> 
+  # filter(week <= 10) |> 
   count(season, week)
-
 
 
 anl_season <- "2024-25"
 df_p <- count(df_plt, season, week) |> filter(season > "2017-18")
 
-ggplot(
-  filter(df_p2, season == anl_season),
-  aes(x = week, y = n)
-) +
+filter(df_p2, season == anl_season) |> 
+  ggplot(aes(x = week, y = n)) +
   geom_path(aes(colour = season), linewidth = 1) +
   geom_point(show.legend = TRUE) +
   stat_smooth(
