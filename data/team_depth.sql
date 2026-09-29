@@ -1,25 +1,20 @@
+
 SELECT 
-	schedule.season_type, 
-	schedule.game_date, 
-	schedule.game_id,
-	box_score.team_id,
-	team_roster.team_slug, 
+	box_score.season,
+	box_score.team_slug,
+	box_score.game_date,
+	box_score.game_id,
 	box_score.player_id,
-	team_roster.player, 
-	team_roster.position, 
-	team_roster.height_cm, 
-	team_roster.weight_kg, 
-	team_roster.birth_date,
-	box_score.start_position,
-	box_score.comment,
+	box_score.player_name,
+	cluster.cluster,
 	box_score.min,
-	box_score.fgm,
+	box_score.pts,
 	box_score.fga,
+	box_score.fgm,
 	box_score.fg3_m,
 	box_score.fg3_a,
 	box_score.ftm,
 	box_score.fta,
-	box_score.pts,
 	box_score.oreb,
 	box_score.dreb,
 	box_score.reb,
@@ -27,30 +22,47 @@ SELECT
 	box_score.stl,
 	box_score.blk,
 	box_score.tov,
-	box_score.pf,
-	box_score.plus_minus,
-	box_score.e_off_rating,
-	box_score.off_rating,
-	box_score.e_def_rating,
-	box_score.def_rating,
-	box_score.e_net_rating,
-	box_score.net_rating,
-	box_score.usg_pct,
-	box_score.e_usg_pct,
-	box_score.e_pace,
-	box_score.pace,
-	box_score.pace_per40,
-	box_score.poss,
-	box_score.pie
-FROM nba.league_game_schedule AS schedule
-LEFT JOIN nba.player_box_score AS box_score ON schedule.game_id = box_score.game_id
-LEFT JOIN (SELECT * FROM nba.team_roster WHERE season = '2024-25') AS team_roster
-	ON box_score.team_id = team_roster.team_id
-	AND box_score.player_id = team_roster.player_id
-
-WHERE schedule.season = '2024-25'
-  AND box_score.team_id IS NOT NULL
-  AND box_score.player_id IS NOT NULL
-	AND schedule.game_date <= CURRENT_DATE - 1
+	team_box_score.min AS team_min,
+	team_box_score.pts AS team_pts,
+	team_box_score.fga AS team_fga,
+	team_box_score.fgm AS team_fgm,
+	team_box_score.fg3_m AS team_fg3_m,
+	team_box_score.fg3_a AS team_fg3_a,
+	team_box_score.ftm AS team_ftm,
+	team_box_score.fta AS team_fta,
+	team_box_score.oreb AS team_oreb,
+	team_box_score.dreb AS team_dreb,
+	team_box_score.reb AS team_reb,
+	team_box_score.ast AS team_ast,
+	team_box_score.stl AS team_stl,
+	team_box_score.blk AS team_blk,
+	team_box_score.tov AS team_tov,
+	schedule.AGAINST AS opponent,
+	injury.status AS injury_status
 	
-ORDER BY game_id, team_id, player_id
+FROM nba.NBA_PLAYER_BOX_SCORE_VW AS box_score
+
+LEFT JOIN nba.NBA_TEAM_BOX_SCORE_VW AS team_box_score
+	ON box_score.SEASON = team_box_score.SEASON
+	AND box_score.TEAM_SLUG_BASE = team_box_score.TEAM_ABBREVIATION
+	AND box_score.GAME_ID = team_box_score.GAME_ID
+	
+LEFT JOIN nba.NBA_SCHEDULE_VW AS schedule 
+	ON box_score.TEAM_SLUG_BASE = schedule.TEAM	
+	AND box_score.GAME_ID = schedule.GAME_ID
+	
+LEFT JOIN nba.NBA_INJURIES_VW AS injury
+	ON box_score.TEAM_SLUG_BASE = injury.TEAM_SLUG
+	AND box_score.player_id = injury.NBA_ID
+	AND box_score.GAME_ID = injury.GAME_ID
+	
+LEFT JOIN anl.player_cluster AS cluster
+	ON box_score.season = cluster.SEASON
+	AND box_score.PLAYER_ID = cluster.PLAYER_ID
+
+WHERE box_score.season >= '2020-21'
+	AND box_score.SEASON_TYPE = 'Regular Season'
+	
+ORDER BY box_score.game_id, box_score.team_slug, box_score.player_id
+
+	
