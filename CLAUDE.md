@@ -6,6 +6,7 @@ Ad hoc NBA data analysis against the `nba` database on CockroachDB Cloud.
 - Python only, managed with `uv`. Python version is pinned in `.python-version`.
 - Add dependencies with `uv add`; run code with `uv run`. Don't use `pip` directly.
 - Don't add R. Do analysis in Python.
+- Use `polars` for data analysis. Avoid `pandas` unless a library requires it; convert at the boundary and say why.
 
 ## Database (CockroachDB Cloud)
 - Cluster: `nba-data-mgmt` (id `11af18b7-ef5e-41b2-b3b7-5db438b1d403`), database `nba`, schema `nba`.
