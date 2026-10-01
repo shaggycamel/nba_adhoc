@@ -14,3 +14,6 @@ credentials.ini
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Local data exports
+data/
