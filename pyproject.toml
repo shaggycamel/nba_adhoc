@@ -9,3 +9,8 @@ dependencies = [
     "pyarrow>=25.0.1",
     "scikit-learn>=1.9.1",
 ]
+
+[dependency-groups]
+export = [
+    "psycopg[binary]>=3.3.6",
+]
