@@ -7,7 +7,8 @@ Predict **player usage** (`usg_pct` in `nba.player_box_score`) for a player's ne
 - Experiment with different data processing techniques (window lengths, weighting such as EWMA, minutes/role adjustments, handling DNPs, missing values and outliers, injury encodings) to find the best combination and the smallest subset of variables that forecasts usage well.
 - Injury is probably a key variable: test it explicitly, both the player's own report status and teammates' absence (usage vacated by injured teammates). Check this with ablations and feature importance, not by assumption.
 - Candidate signals: rolling trends, teammate availability/injuries, and player synergy (how a player's usage shifts with specific teammates on or off the floor).
-- Compare variable sets and processing choices on the same time-based splits, and report which combination wins and which variables drive usage.
+- Try a wide range of algorithms, classical ML and neural networks: regularised linear (Ridge/ElasticNet), tree ensembles (random forest, extra trees, gradient boosting with LightGBM/XGBoost/CatBoost), plus PyTorch neural nets (MLP with player embeddings, and a sequence model over each player's recent games). Tune each fairly on the same validation folds.
+- Compare variable sets, processing choices and algorithms on the same time-based splits, and report which combination wins and which variables drive usage.
 - Use established packages (`polars`, `scikit-learn`, `lightgbm`). Evaluate with time-based splits only, never random shuffles, and compute every feature from prior games to avoid leakage.
 - Always compare against simple baselines (season mean, last-N mean) before claiming a model helps.
 
