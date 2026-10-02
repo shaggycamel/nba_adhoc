@@ -16,6 +16,8 @@ from pathlib import Path
 RESULTS = Path("RESULTS.md")
 ABLATION = Path("RESULTS_ablation.md")
 PROCESSING = Path("RESULTS_processing.md")
+MINUTES = Path("RESULTS_minutes.md")
+VOLUME = Path("RESULTS_volume.md")
 OUT = Path("report.html")
 
 
@@ -299,6 +301,12 @@ tr.is-best td { background: color-mix(in srgb, var(--accent) 9%, transparent); f
 .verdict.keep { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
 .verdict.drop { color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, transparent); }
 
+table.scoreboard { border-collapse: collapse; width: 100%; font-size: 14px; margin: 20px 0; }
+table.scoreboard th, table.scoreboard td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line-soft); vertical-align: top; white-space: normal; }
+table.scoreboard th { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+table.scoreboard td:first-child { font-weight: 600; }
+@media (max-width: 560px) { table.scoreboard { font-size: 13px; } table.scoreboard th, table.scoreboard td { padding: 8px; } }
+
 .callout { border-left: 3px solid var(--accent); background: var(--surface); padding: 16px 20px; margin: 24px 0; border-radius: 0 8px 8px 0; }
 .callout p:last-child { margin-bottom: 0; }
 
@@ -360,6 +368,9 @@ def main() -> None:
         [("best baseline", f(best_base, "MAE")), ("all 97 features", f(best_model, "MAE"))],
     )
 
+    mins = parse_tables(MINUTES)["Minutes and absence duration"] if MINUTES.exists() else []
+    vol = parse_tables(VOLUME)["Volume projection"] if VOLUME.exists() else []
+
     inj = proc["Injury encodings (Ridge, mean over folds)"]
     win = proc["Window length and weighting (Ridge, mean over folds)"]
     rowsets = proc["Outlier and DNP handling (row sets differ, so MAE is not comparable across rows)"]
@@ -368,6 +379,26 @@ def main() -> None:
     twelve = greedy[-1]
     recovered3 = (f(best_base, "MAE") - f(three, "mae")) / (f(best_base, "MAE") - f(best_model, "MAE")) * 100
     recovered12 = (f(best_base, "MAE") - f(twelve, "mae")) / (f(best_base, "MAE") - f(best_model, "MAE")) * 100
+
+    # --- minutes on the slice the project exists for ------------------
+    backup = "starter out, player is a backup"
+    mins_last = [r for r in mins if r["slice"] == backup and r["fold"] == last]
+    chart_minutes = ""
+    mins_gain = None
+    if mins_last:
+        rows_m = sorted(
+            [(r["method"], f(r, "mae"), "base" if r["method"].startswith("baseline") else "model")
+             for r in mins_last],
+            key=lambda t: t[1],
+        )
+        chart_minutes = dot_plot(rows_m, step=0.2)
+        best_m = min(mins_last, key=lambda r: f(r, "mae"))
+        base_m = min((r for r in mins_last if r["method"].startswith("baseline")), key=lambda r: f(r, "mae"))
+        mins_gain = (base_m, best_m)
+
+    vol_last = [r for r in vol if r.get("slice") == backup and r["fold"] == last and r["target"] == "pts"]
+    best_v = min(vol_last, key=lambda r: f(r, "mae")) if vol_last else None
+    base_v = min((r for r in vol_last if r["method"].startswith("baseline")), key=lambda r: f(r, "mae")) if vol_last else None
 
     legend_models = (
         '<div class="legend"><span><i class="swatch sw-model"></i>fitted model</span>'
@@ -382,7 +413,7 @@ def main() -> None:
 <div class="wrap">
 <header class="masthead">
   <p class="eyebrow">nba_adhoc &middot; branch opus-attempt</p>
-  <h1>Forecasting next-game usage</h1>
+  <h1>Forecasting next-game minutes and usage</h1>
   <p class="standfirst">What predicts a player's <code>usg_pct</code> in their next game, using only
   what is known before tip-off &mdash; which features earn their place, which were tried and dropped,
   and how much any of it beats simply averaging recent games.</p>
@@ -420,6 +451,25 @@ def main() -> None:
     season, score the next one. Nothing is shuffled. Every feature is computed from games strictly before
     the one being predicted, and usage is modelled conditional on the player appearing.</p>
   </div>
+</section>
+
+<section>
+  <h2>Minutes is the model worth having</h2>
+  <p class="sectionnote">Minutes on {esc(last)}, for a backup playing while a
+  starter-minutes teammate is ruled out. This is the case the project exists for.</p>
+  {f'<figure><div class="chartwrap">{chart_minutes}</div>{legend_models}<figcaption>'
+   f'A recent-minutes average is structurally wrong here: a bench player\'s last ten games '
+   f'were played without the vacancy. Note the third entry from the bottom — the minutes a '
+   f'player\'s share of the available rotation implies, with no model fitted at all, already '
+   f'beats both averages.</figcaption></figure>' if chart_minutes else ''}
+  {f'<p>Modelling takes minutes from <strong>{f(mins_gain[0], "mae"):.3f} MAE, R&sup2; {f(mins_gain[0], "r2"):.3f}</strong> '
+   f'for the best recent average to <strong>{f(mins_gain[1], "mae"):.3f}, R&sup2; {f(mins_gain[1], "r2"):.3f}</strong>. '
+   f'That nearly doubles explained variance — far more than the usage model gains over its own baseline, '
+   f'and the reason minutes rather than usage is the deliverable.</p>' if mins_gain else ''}
+  {f'<p>It carries through to scoring: points on the same slice go from {f(base_v, "mae"):.3f} MAE '
+   f'(R&sup2; {f(base_v, "r2"):.3f}) to {f(best_v, "mae"):.3f} (R&sup2; {f(best_v, "r2"):.3f}). '
+   f'Volume is projected as predicted minutes times a predicted per-minute rate, with the rate model '
+   f'given an out-of-fold usage prediction.</p>' if best_v else ''}
 </section>
 
 <section>
@@ -515,6 +565,27 @@ def main() -> None:
 </section>
 
 <section>
+  <h2>Nine ideas tested, one replicated</h2>
+  <div class="tablewrap"><table class="scoreboard"><thead><tr><th>block</th><th>verdict</th><th>evidence</th></tr></thead>
+  <tbody>
+    <tr><td>Injury absence</td><td><span class="verdict keep">kept</span></td><td>usage 0.05006 &rarr; 0.04982 MAE</td></tr>
+    <tr><td>Rotation position</td><td><span class="verdict keep">kept</span></td><td>0.04982 &rarr; 0.04945; largest structural effect</td></tr>
+    <tr><td>Standings and incentives</td><td><span class="verdict keep">kept</span></td><td>best on both folds, both targets, both model families</td></tr>
+    <tr><td>Role clusters</td><td><span class="verdict drop">rejected</span></td><td>&le;0.00002 MAE either way</td></tr>
+    <tr><td>Pairwise absorption</td><td><span class="verdict drop">rejected</span></td><td>0.04945 &rarr; 0.04943, noise</td></tr>
+    <tr><td>Component decomposition</td><td><span class="verdict drop">rejected</span></td><td>0.04888 &rarr; 0.05038, clearly worse</td></tr>
+    <tr><td>Absence duration</td><td><span class="verdict drop">rejected</span></td><td>minutes 5.070 &rarr; 5.082</td></tr>
+    <tr><td>Player biography</td><td><span class="verdict drop">rejected</span></td><td>behind on 3 of 4 minutes cells</td></tr>
+    <tr><td>Opponent form, mismatch, churn</td><td><span class="verdict drop">rejected</span></td><td>opposite directions on the two folds</td></tr>
+  </tbody></table></div>
+  <p><strong>The pattern is the finding.</strong> Everything that failed was a re-expression of
+  information already in the player's own rolling history. The one block that replicated describes
+  something that history structurally cannot contain: what the organisation wants. A team above the
+  playoff line in March behaves differently from one out of the race, and no amount of a player's
+  past box scores reveals it.</p>
+</section>
+
+<section>
   <h2>Caveats</h2>
   <ul class="notes">
     <li><strong>Injury data starts 2021-10-19</strong>, so every injury-aware result uses five seasons, not
@@ -525,8 +596,12 @@ def main() -> None:
     to try if the absence features are worth pushing further.</li>
     <li><strong>Two folds only</strong> for the injury-era results. The differences between the top models
     are smaller than the gap between folds, so read the ranking as "all equivalent" rather than as a winner.</li>
-    <li>Usage is modelled <strong>conditional on the player appearing</strong>. Predicting usage for someone
-    who might be ruled out needs an availability model first.</li>
+    <li><strong>2021-22 is unusable for absence spells</strong> — its report matches too few games for
+    consecutive absences to join up, so every spell there reads as one game.</li>
+    <li><strong>Minutes are whole numbers in this dataset.</strong> Reconstructing usage from its observed
+    components misses the stored column by 0.0138 MAE, a floor on anything formula-based.</li>
+    <li>Everything is modelled <strong>conditional on the player appearing</strong>. Projecting someone who
+    might be ruled out needs an availability model first.</li>
   </ul>
 </section>
 
@@ -546,7 +621,7 @@ def main() -> None:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Forecasting next-game usage</title>
+<title>Forecasting next-game minutes and usage</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">

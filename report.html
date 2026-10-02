@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Forecasting next-game usage</title>
+<title>Forecasting next-game minutes and usage</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
@@ -132,6 +132,12 @@ tr.is-best td { background: color-mix(in srgb, var(--accent) 9%, transparent); f
 .verdict.keep { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
 .verdict.drop { color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, transparent); }
 
+table.scoreboard { border-collapse: collapse; width: 100%; font-size: 14px; margin: 20px 0; }
+table.scoreboard th, table.scoreboard td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line-soft); vertical-align: top; white-space: normal; }
+table.scoreboard th { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+table.scoreboard td:first-child { font-weight: 600; }
+@media (max-width: 560px) { table.scoreboard { font-size: 13px; } table.scoreboard th, table.scoreboard td { padding: 8px; } }
+
 .callout { border-left: 3px solid var(--accent); background: var(--surface); padding: 16px 20px; margin: 24px 0; border-radius: 0 8px 8px 0; }
 .callout p:last-child { margin-bottom: 0; }
 
@@ -148,7 +154,7 @@ footer code { font-size: 12px; }
 <div class="wrap">
 <header class="masthead">
   <p class="eyebrow">nba_adhoc &middot; branch opus-attempt</p>
-  <h1>Forecasting next-game usage</h1>
+  <h1>Forecasting next-game minutes and usage</h1>
   <p class="standfirst">What predicts a player's <code>usg_pct</code> in their next game, using only
   what is known before tip-off &mdash; which features earn their place, which were tried and dropped,
   and how much any of it beats simply averaging recent games.</p>
@@ -186,6 +192,109 @@ footer code { font-size: 12px; }
     season, score the next one. Nothing is shuffled. Every feature is computed from games strictly before
     the one being predicted, and usage is modelled conditional on the player appearing.</p>
   </div>
+</section>
+
+<section>
+  <h2>Minutes is the model worth having</h2>
+  <p class="sectionnote">Minutes on 2025-26, for a backup playing while a
+  starter-minutes teammate is ruled out. This is the case the project exists for.</p>
+  <figure><div class="chartwrap"><svg viewBox="0 0 760 463" class="chart" role="img">
+<line class="grid" x1="233.5" y1="22" x2="233.5" y2="421.0"/>
+<text class="tick" x="233.5" y="447" text-anchor="middle">3.800</text>
+<line class="grid" x1="274.0" y1="22" x2="274.0" y2="421.0"/>
+<text class="tick" x="274.0" y="447" text-anchor="middle">4.000</text>
+<line class="grid" x1="314.6" y1="22" x2="314.6" y2="421.0"/>
+<text class="tick" x="314.6" y="447" text-anchor="middle">4.200</text>
+<line class="grid" x1="355.2" y1="22" x2="355.2" y2="421.0"/>
+<text class="tick" x="355.2" y="447" text-anchor="middle">4.400</text>
+<line class="grid" x1="395.8" y1="22" x2="395.8" y2="421.0"/>
+<text class="tick" x="395.8" y="447" text-anchor="middle">4.600</text>
+<line class="grid" x1="436.4" y1="22" x2="436.4" y2="421.0"/>
+<text class="tick" x="436.4" y="447" text-anchor="middle">4.800</text>
+<line class="grid" x1="477.0" y1="22" x2="477.0" y2="421.0"/>
+<text class="tick" x="477.0" y="447" text-anchor="middle">5.000</text>
+<line class="grid" x1="517.6" y1="22" x2="517.6" y2="421.0"/>
+<text class="tick" x="517.6" y="447" text-anchor="middle">5.200</text>
+<line class="grid" x1="558.1" y1="22" x2="558.1" y2="421.0"/>
+<text class="tick" x="558.1" y="447" text-anchor="middle">5.400</text>
+<line class="grid" x1="598.7" y1="22" x2="598.7" y2="421.0"/>
+<text class="tick" x="598.7" y="447" text-anchor="middle">5.600</text>
+<line class="grid" x1="639.3" y1="22" x2="639.3" y2="421.0"/>
+<text class="tick" x="639.3" y="447" text-anchor="middle">5.800</text>
+<line class="grid" x1="679.9" y1="22" x2="679.9" y2="421.0"/>
+<text class="tick" x="679.9" y="447" text-anchor="middle">6.000</text>
+<text class="rowlabel" x="182" y="45.5" text-anchor="end">lightgbm pipeline +mismatch</text>
+<line class="connector" x1="196" y1="41.5" x2="238.2" y2="41.5"/>
+<circle class="dot s-model" cx="238.2" cy="41.5" r="5.5"/>
+<text class="value" x="251.2" y="45.5">3.82320</text>
+<text class="rowlabel" x="182" y="68.5" text-anchor="end">lightgbm pipeline +mismatch+transactions</text>
+<line class="connector" x1="196" y1="64.5" x2="238.6" y2="64.5"/>
+<circle class="dot s-model" cx="238.6" cy="64.5" r="5.5"/>
+<text class="value" x="251.6" y="68.5">3.82510</text>
+<text class="rowlabel" x="182" y="91.5" text-anchor="end">lightgbm pipeline +transactions</text>
+<line class="connector" x1="196" y1="87.5" x2="238.7" y2="87.5"/>
+<circle class="dot s-model" cx="238.7" cy="87.5" r="5.5"/>
+<text class="value" x="251.7" y="91.5">3.82590</text>
+<text class="rowlabel" x="182" y="114.5" text-anchor="end">lightgbm pipeline standings (current best)</text>
+<line class="connector" x1="196" y1="110.5" x2="240.3" y2="110.5"/>
+<circle class="dot s-model" cx="240.3" cy="110.5" r="5.5"/>
+<text class="value" x="253.3" y="114.5">3.83370</text>
+<text class="rowlabel" x="182" y="137.5" text-anchor="end">ridge pipeline standings (current best)</text>
+<line class="connector" x1="196" y1="133.5" x2="243.5" y2="133.5"/>
+<circle class="dot s-model" cx="243.5" cy="133.5" r="5.5"/>
+<text class="value" x="256.5" y="137.5">3.84970</text>
+<text class="rowlabel" x="182" y="160.5" text-anchor="end">ridge pipeline +mismatch</text>
+<line class="connector" x1="196" y1="156.5" x2="243.6" y2="156.5"/>
+<circle class="dot s-model" cx="243.6" cy="156.5" r="5.5"/>
+<text class="value" x="256.6" y="160.5">3.84980</text>
+<text class="rowlabel" x="182" y="183.5" text-anchor="end">ridge pipeline +transactions</text>
+<line class="connector" x1="196" y1="179.5" x2="243.8" y2="179.5"/>
+<circle class="dot s-model" cx="243.8" cy="179.5" r="5.5"/>
+<text class="value" x="256.8" y="183.5">3.85080</text>
+<text class="rowlabel" x="182" y="206.5" text-anchor="end">ridge pipeline +mismatch+transactions</text>
+<line class="connector" x1="196" y1="202.5" x2="243.8" y2="202.5"/>
+<circle class="dot s-model" cx="243.8" cy="202.5" r="5.5"/>
+<text class="value" x="256.8" y="206.5">3.85080</text>
+<text class="rowlabel" x="182" y="229.5" text-anchor="end">lightgbm +mismatch+transactions</text>
+<line class="connector" x1="196" y1="225.5" x2="496.6" y2="225.5"/>
+<circle class="dot s-model" cx="496.6" cy="225.5" r="5.5"/>
+<text class="value" x="509.6" y="229.5">5.09680</text>
+<text class="rowlabel" x="182" y="252.5" text-anchor="end">lightgbm +mismatch</text>
+<line class="connector" x1="196" y1="248.5" x2="496.8" y2="248.5"/>
+<circle class="dot s-model" cx="496.8" cy="248.5" r="5.5"/>
+<text class="value" x="509.8" y="252.5">5.09770</text>
+<text class="rowlabel" x="182" y="275.5" text-anchor="end">lightgbm standings (current best)</text>
+<line class="connector" x1="196" y1="271.5" x2="498.0" y2="271.5"/>
+<circle class="dot s-model" cx="498.0" cy="271.5" r="5.5"/>
+<text class="value" x="511.0" y="275.5">5.10340</text>
+<text class="rowlabel" x="182" y="298.5" text-anchor="end">lightgbm +transactions</text>
+<line class="connector" x1="196" y1="294.5" x2="498.7" y2="294.5"/>
+<circle class="dot s-model" cx="498.7" cy="294.5" r="5.5"/>
+<text class="value" x="511.7" y="298.5">5.10710</text>
+<text class="rowlabel" x="182" y="321.5" text-anchor="end">ridge standings (current best)</text>
+<line class="connector" x1="196" y1="317.5" x2="504.4" y2="317.5"/>
+<circle class="dot s-model" cx="504.4" cy="317.5" r="5.5"/>
+<text class="value" x="517.4" y="321.5">5.13500</text>
+<text class="rowlabel" x="182" y="344.5" text-anchor="end">ridge +mismatch</text>
+<line class="connector" x1="196" y1="340.5" x2="504.4" y2="340.5"/>
+<circle class="dot s-model" cx="504.4" cy="340.5" r="5.5"/>
+<text class="value" x="517.4" y="344.5">5.13520</text>
+<text class="rowlabel" x="182" y="367.5" text-anchor="end">ridge +transactions</text>
+<line class="connector" x1="196" y1="363.5" x2="505.3" y2="363.5"/>
+<circle class="dot s-model" cx="505.3" cy="363.5" r="5.5"/>
+<text class="value" x="518.3" y="367.5">5.13970</text>
+<text class="rowlabel" x="182" y="390.5" text-anchor="end">ridge +mismatch+transactions</text>
+<line class="connector" x1="196" y1="386.5" x2="505.3" y2="386.5"/>
+<circle class="dot s-model" cx="505.3" cy="386.5" r="5.5"/>
+<text class="value" x="518.3" y="390.5">5.13980</text>
+<text class="rowlabel" x="182" y="413.5" text-anchor="end">baseline last10</text>
+<line class="connector" x1="196" y1="409.5" x2="659.8" y2="409.5"/>
+<circle class="dot s-base" cx="659.8" cy="409.5" r="5.5"/>
+<text class="value" x="672.8" y="413.5">5.90110</text>
+<text class="axistitle" x="380" y="457" text-anchor="middle">MAE</text>
+</svg></div><div class="legend"><span><i class="swatch sw-model"></i>fitted model</span><span><i class="swatch sw-base"></i>baseline</span></div><figcaption>A recent-minutes average is structurally wrong here: a bench player's last ten games were played without the vacancy. Note the third entry from the bottom — the minutes a player's share of the available rotation implies, with no model fitted at all, already beats both averages.</figcaption></figure>
+  <p>Modelling takes minutes from <strong>5.901 MAE, R&sup2; 0.251</strong> for the best recent average to <strong>3.823, R&sup2; 0.295</strong>. That nearly doubles explained variance — far more than the usage model gains over its own baseline, and the reason minutes rather than usage is the deliverable.</p>
+  <p>It carries through to scoring: points on the same slice go from 4.025 MAE (R&sup2; 0.184) to 3.825 (R&sup2; 0.289). Volume is projected as predicted minutes times a predicted per-minute rate, with the rate model given an out-of-fold usage prediction.</p>
 </section>
 
 <section>
@@ -427,6 +536,27 @@ footer code { font-size: 12px; }
 </section>
 
 <section>
+  <h2>Nine ideas tested, one replicated</h2>
+  <div class="tablewrap"><table class="scoreboard"><thead><tr><th>block</th><th>verdict</th><th>evidence</th></tr></thead>
+  <tbody>
+    <tr><td>Injury absence</td><td><span class="verdict keep">kept</span></td><td>usage 0.05006 &rarr; 0.04982 MAE</td></tr>
+    <tr><td>Rotation position</td><td><span class="verdict keep">kept</span></td><td>0.04982 &rarr; 0.04945; largest structural effect</td></tr>
+    <tr><td>Standings and incentives</td><td><span class="verdict keep">kept</span></td><td>best on both folds, both targets, both model families</td></tr>
+    <tr><td>Role clusters</td><td><span class="verdict drop">rejected</span></td><td>&le;0.00002 MAE either way</td></tr>
+    <tr><td>Pairwise absorption</td><td><span class="verdict drop">rejected</span></td><td>0.04945 &rarr; 0.04943, noise</td></tr>
+    <tr><td>Component decomposition</td><td><span class="verdict drop">rejected</span></td><td>0.04888 &rarr; 0.05038, clearly worse</td></tr>
+    <tr><td>Absence duration</td><td><span class="verdict drop">rejected</span></td><td>minutes 5.070 &rarr; 5.082</td></tr>
+    <tr><td>Player biography</td><td><span class="verdict drop">rejected</span></td><td>behind on 3 of 4 minutes cells</td></tr>
+    <tr><td>Opponent form, mismatch, churn</td><td><span class="verdict drop">rejected</span></td><td>opposite directions on the two folds</td></tr>
+  </tbody></table></div>
+  <p><strong>The pattern is the finding.</strong> Everything that failed was a re-expression of
+  information already in the player's own rolling history. The one block that replicated describes
+  something that history structurally cannot contain: what the organisation wants. A team above the
+  playoff line in March behaves differently from one out of the race, and no amount of a player's
+  past box scores reveals it.</p>
+</section>
+
+<section>
   <h2>Caveats</h2>
   <ul class="notes">
     <li><strong>Injury data starts 2021-10-19</strong>, so every injury-aware result uses five seasons, not
@@ -437,8 +567,12 @@ footer code { font-size: 12px; }
     to try if the absence features are worth pushing further.</li>
     <li><strong>Two folds only</strong> for the injury-era results. The differences between the top models
     are smaller than the gap between folds, so read the ranking as "all equivalent" rather than as a winner.</li>
-    <li>Usage is modelled <strong>conditional on the player appearing</strong>. Predicting usage for someone
-    who might be ruled out needs an availability model first.</li>
+    <li><strong>2021-22 is unusable for absence spells</strong> — its report matches too few games for
+    consecutive absences to join up, so every spell there reads as one game.</li>
+    <li><strong>Minutes are whole numbers in this dataset.</strong> Reconstructing usage from its observed
+    components misses the stored column by 0.0138 MAE, a floor on anything formula-based.</li>
+    <li>Everything is modelled <strong>conditional on the player appearing</strong>. Projecting someone who
+    might be ruled out needs an availability model first.</li>
   </ul>
 </section>
 
