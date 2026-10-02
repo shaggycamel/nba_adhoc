@@ -10,6 +10,7 @@ from .features import add_prior_features
 from .hierarchy import add_rotation_features
 from .injuries import absence_features
 from .panel import add_game_order, load_panel
+from .synergy import absorption_features
 
 
 def build(cache: Path | None = None, rebuild: bool = False) -> pl.DataFrame:
@@ -29,6 +30,11 @@ def build(cache: Path | None = None, rebuild: bool = False) -> pl.DataFrame:
         .join(
             add_rotation_features(panel, played),
             on=["game_id", "player_id", "team_abbreviation"],
+            how="left",
+        )
+        .join(
+            absorption_features(panel),
+            on=["game_id", "player_id"],
             how="left",
         )
         # A player who played despite being ruled out has no rank among the
