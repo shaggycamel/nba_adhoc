@@ -19,7 +19,7 @@ import numpy as np
 import polars as pl
 
 from .attributes import ATTRIBUTE_COLS
-from .context import CONTEXT_COLS
+from .context import CONTEXT_COLS, MISMATCH_COLS
 from .evaluate import metrics, season_splits
 from .hierarchy import ROTATION_COLS
 from .injuries import ABSENCE_COLS, INJURY_START
@@ -27,10 +27,11 @@ from .minutes import MINUTES_COLS
 from .models import design_matrix, fit_lightgbm, fit_ridge
 from .spells import SPELL_COLS
 from .standings import STANDINGS_COLS
+from .transactions import TRANSACTION_COLS
 from .volume import volume_feature_columns
 
 OUT = Path("RESULTS_minutes.md")
-FRAME = Path(".cache/volume_frame4.parquet")
+FRAME = Path(".cache/volume_frame5.parquet")
 
 SLICES = {
     "all rows": pl.lit(True),
@@ -44,11 +45,23 @@ def main() -> None:
     frame = pl.read_parquet(FRAME).filter(pl.col("game_date") >= pl.lit(INJURY_START).str.to_date())
     base = volume_feature_columns(frame, extra=ABSENCE_COLS + ROTATION_COLS)
     enriched = base + [c for c in CONTEXT_COLS + MINUTES_COLS if c in frame.columns]
-    with_spells = enriched + [c for c in SPELL_COLS if c in frame.columns]
-    with_attrs = with_spells + [c for c in ATTRIBUTE_COLS if c in frame.columns]
-    with_stand = with_spells + [c for c in STANDINGS_COLS if c in frame.columns]
-    everything = with_attrs + [c for c in STANDINGS_COLS if c in frame.columns]
-    for cl in (with_spells, with_attrs, with_stand, everything):
+    # Biography failed its ablation, so it is out. Standings is the current
+    # best and the reference every new block is measured against.
+    best = (
+        enriched
+        + [c for c in SPELL_COLS if c in frame.columns]
+        + [c for c in STANDINGS_COLS if c in frame.columns]
+    )
+    with_mismatch = best + [c for c in MISMATCH_COLS if c in frame.columns]
+    with_trans = best + [c for c in TRANSACTION_COLS if c in frame.columns]
+    with_both = with_mismatch + [c for c in TRANSACTION_COLS if c in frame.columns]
+    variants = (
+        ("standings (current best)", best),
+        ("+mismatch", with_mismatch),
+        ("+transactions", with_trans),
+        ("+mismatch+transactions", with_both),
+    )
+    for _, cl in variants:
         assert "min" not in cl and "pts" not in cl
 
     rows: list[dict] = []
@@ -69,13 +82,7 @@ def main() -> None:
 
         minutes_preds = {}
         for fname, fit in (("ridge", fit_ridge), ("lightgbm", fit_lightgbm)):
-            for cname, cols in (
-                ("no spells", enriched),
-                ("+spells", with_spells),
-                ("+attributes", with_attrs),
-                ("+standings", with_stand),
-                ("+attrs+standings", everything),
-            ):
+            for cname, cols in variants:
                 _, model = fit(train, valid, cols, target="min")
                 p = np.clip(np.asarray(model.predict(design_matrix(valid, cols))), 0.0, float(train["min"].max()))
                 minutes_preds[(fname, cname)] = (p, cols)

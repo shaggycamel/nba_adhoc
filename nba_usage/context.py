@@ -74,3 +74,30 @@ CONTEXT_COLS = (
     + [f"opp_{s}" for s in TEAM_STATS]
     + ["game_pace", "opp_def_softness"]
 )
+
+
+def add_mismatch_features(frame: pl.DataFrame) -> pl.DataFrame:
+    """How lopsided the game looks before it starts.
+
+    A blowout empties the bench, and it empties both benches. For a backup
+    filling in for an injured starter this is one of the few pre-game facts
+    that moves their minutes a long way in either direction: a close game
+    means the rotation tightens around whoever is left, a rout means the
+    whole end of the bench plays. Direction matters too, since the losing
+    side concedes garbage time earlier than the winning side grants it.
+    """
+    own_net = pl.col("own_off_rating") - pl.col("own_def_rating")
+    opp_net = pl.col("opp_off_rating") - pl.col("opp_def_rating")
+    return frame.with_columns(
+        net_rating_diff=(own_net - opp_net),
+        win_pct_diff=(pl.col("win_pct") - pl.col("opp_win_pct")),
+    ).with_columns(
+        # Size of the mismatch regardless of who is favoured: this is what
+        # predicts garbage time existing at all.
+        mismatch_size=pl.col("net_rating_diff").abs(),
+        # Signed, with home advantage folded in, for who is likely ahead.
+        expected_edge=pl.col("net_rating_diff") + pl.when(pl.col("home")).then(3.0).otherwise(-3.0),
+    )
+
+
+MISMATCH_COLS = ["net_rating_diff", "win_pct_diff", "mismatch_size", "expected_edge"]
