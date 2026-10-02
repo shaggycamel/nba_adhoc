@@ -14,3 +14,13 @@ dependencies = [
 export = [
     "psycopg[binary]>=3.3.6",
 ]
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "sports-hub",
+]
+
+[tool.uv.sources]
+sports-hub = { git = "https://github.com/shaggycamel/sports-hub.git" }
+
