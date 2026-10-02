@@ -19,3 +19,4 @@ credentials.ini
 data/
 
 .cache/
+catboost_info/
