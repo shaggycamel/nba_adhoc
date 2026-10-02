@@ -9,6 +9,8 @@ on: usage is only observed when a player appears.
 
 from __future__ import annotations
 
+import re
+
 import polars as pl
 
 # Rate stats whose recent history plausibly describes a player's role.
@@ -75,13 +77,19 @@ def add_prior_features(
     return out
 
 
+# Suffixes `add_prior_features` produces. Matching these exactly, rather than
+# matching a stat prefix, is what keeps a same-game column out of the feature
+# list: a prefix match would happily accept `fga_pm` or any other column a
+# later join adds under a stat's name.
+_GENERATED = re.compile(r"_(?:r\d+|sd\d+|ewm[\d.]+|season|career)$")
+
+
 def feature_columns(df: pl.DataFrame, extra: list[str] | None = None) -> list[str]:
     """Model inputs: the engineered history plus a few known-before-tip facts."""
     engineered = [
         c
         for c in df.columns
-        if any(c.startswith(f"{s}_") for s in ROLE_STATS)
-        and not c.endswith("_pct")  # guard against re-adding the raw stats
+        if any(c.startswith(f"{s}_") for s in ROLE_STATS) and _GENERATED.search(c)
     ]
     context = [
         "home",
