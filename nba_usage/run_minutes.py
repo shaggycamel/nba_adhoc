@@ -18,6 +18,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
+from .attributes import ATTRIBUTE_COLS
 from .context import CONTEXT_COLS
 from .evaluate import metrics, season_splits
 from .hierarchy import ROTATION_COLS
@@ -25,10 +26,11 @@ from .injuries import ABSENCE_COLS, INJURY_START
 from .minutes import MINUTES_COLS
 from .models import design_matrix, fit_lightgbm, fit_ridge
 from .spells import SPELL_COLS
+from .standings import STANDINGS_COLS
 from .volume import volume_feature_columns
 
 OUT = Path("RESULTS_minutes.md")
-FRAME = Path(".cache/volume_frame3.parquet")
+FRAME = Path(".cache/volume_frame4.parquet")
 
 SLICES = {
     "all rows": pl.lit(True),
@@ -43,7 +45,11 @@ def main() -> None:
     base = volume_feature_columns(frame, extra=ABSENCE_COLS + ROTATION_COLS)
     enriched = base + [c for c in CONTEXT_COLS + MINUTES_COLS if c in frame.columns]
     with_spells = enriched + [c for c in SPELL_COLS if c in frame.columns]
-    assert "min" not in with_spells and "pts" not in with_spells
+    with_attrs = with_spells + [c for c in ATTRIBUTE_COLS if c in frame.columns]
+    with_stand = with_spells + [c for c in STANDINGS_COLS if c in frame.columns]
+    everything = with_attrs + [c for c in STANDINGS_COLS if c in frame.columns]
+    for cl in (with_spells, with_attrs, with_stand, everything):
+        assert "min" not in cl and "pts" not in cl
 
     rows: list[dict] = []
     for sp in season_splits(sorted(frame["season"].unique().to_list()), n_folds=2, min_train=2):
@@ -63,7 +69,13 @@ def main() -> None:
 
         minutes_preds = {}
         for fname, fit in (("ridge", fit_ridge), ("lightgbm", fit_lightgbm)):
-            for cname, cols in (("no spells", enriched), ("+spells", with_spells)):
+            for cname, cols in (
+                ("no spells", enriched),
+                ("+spells", with_spells),
+                ("+attributes", with_attrs),
+                ("+standings", with_stand),
+                ("+attrs+standings", everything),
+            ):
                 _, model = fit(train, valid, cols, target="min")
                 p = np.clip(np.asarray(model.predict(design_matrix(valid, cols))), 0.0, float(train["min"].max()))
                 minutes_preds[(fname, cname)] = (p, cols)
