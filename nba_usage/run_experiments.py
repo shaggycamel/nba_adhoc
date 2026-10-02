@@ -13,6 +13,7 @@ import polars as pl
 from .dataset import build
 from .evaluate import run_baselines, season_splits
 from .features import feature_columns
+from .hierarchy import ROTATION_COLS
 from .injuries import ABSENCE_COLS, INJURY_START
 from .models import fit_lightgbm, fit_ridge
 
@@ -30,8 +31,10 @@ def main() -> None:
     if not args.all_seasons:
         frame = frame.filter(pl.col("game_date") >= pl.lit(INJURY_START).str.to_date())
 
-    base_cols = [c for c in feature_columns(frame) if c not in ABSENCE_COLS]
-    full_cols = base_cols + [c for c in ABSENCE_COLS if c in frame.columns]
+    structural = set(ABSENCE_COLS) | set(ROTATION_COLS)
+    base_cols = [c for c in feature_columns(frame) if c not in structural]
+    absence_cols = base_cols + [c for c in ABSENCE_COLS if c in frame.columns]
+    full_cols = absence_cols + [c for c in ROTATION_COLS if c in frame.columns]
 
     rows = []
     for sp in season_splits(sorted(frame["season"].unique().to_list()), n_folds=args.folds, min_train=2):
@@ -41,7 +44,11 @@ def main() -> None:
         for r in run_baselines(train, valid).iter_rows(named=True):
             rows.append({"fold": sp.name, "features": "-", **r})
         for name, fit in (("ridge", fit_ridge), ("lightgbm", fit_lightgbm)):
-            for label, cols in (("history", base_cols), ("history+absence", full_cols)):
+            for label, cols in (
+                ("history", base_cols),
+                ("history+absence", absence_cols),
+                ("history+absence+rotation", full_cols),
+            ):
                 m, _ = fit(train, valid, cols)
                 rows.append({"fold": sp.name, "features": label, "model": name, **m})
 

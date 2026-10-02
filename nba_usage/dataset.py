@@ -7,6 +7,7 @@ from pathlib import Path
 import polars as pl
 
 from .features import add_prior_features
+from .hierarchy import add_rotation_features
 from .injuries import absence_features
 from .panel import add_game_order, load_panel
 
@@ -18,10 +19,24 @@ def build(cache: Path | None = None, rebuild: bool = False) -> pl.DataFrame:
 
     panel = add_game_order(load_panel())
     played = panel.filter(pl.col("played"))
-    frame = add_prior_features(played).join(
-        absence_features(panel, played),
-        on=["game_id", "player_id", "team_abbreviation"],
-        how="left",
+    frame = (
+        add_prior_features(played)
+        .join(
+            absence_features(panel, played),
+            on=["game_id", "player_id", "team_abbreviation"],
+            how="left",
+        )
+        .join(
+            add_rotation_features(panel, played),
+            on=["game_id", "player_id", "team_abbreviation"],
+            how="left",
+        )
+        # A player who played despite being ruled out has no rank among the
+        # available; treat them as the bottom of the rotation.
+        .with_columns(
+            rotation_rank=pl.col("rotation_rank").fill_null(pl.col("rotation_size")),
+            rotation_rank_norm=pl.col("rotation_rank_norm").fill_null(1.0),
+        )
     )
     if cache is not None:
         cache.parent.mkdir(parents=True, exist_ok=True)
