@@ -10,6 +10,8 @@ enough to sweep), so differences are down to the processing choice.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import polars as pl
 
 from .evaluate import metrics, season_splits
@@ -133,20 +135,38 @@ def greedy_subset(frame: pl.DataFrame, max_features: int = 12) -> pl.DataFrame:
     return pl.DataFrame(rows)
 
 
+def _md(title: str, df: pl.DataFrame) -> str:
+    head = f"## {title}\n\n| " + " | ".join(df.columns) + " |\n|" + "---|" * len(df.columns)
+    body = [
+        "| " + " | ".join(f"{v:.5f}" if isinstance(v, float) else str(v) for v in row) + " |"
+        for row in df.iter_rows()
+    ]
+    return "\n".join([head, *body, ""])
+
+
 def main() -> None:
     panel = add_game_order(load_panel())
     played = panel.filter(pl.col("played"))
     default = _frame((3, 5, 10, 20), (3.0, 10.0), panel, played)
 
+    tables = {
+        "Window length and weighting (Ridge, mean over folds)": windows_and_weighting(panel, played).sort("mae"),
+        "Injury encodings (Ridge, mean over folds)": injury_encodings(default).sort("mae"),
+        "Outlier and DNP handling (row sets differ, so MAE is not comparable across rows)": outlier_and_dnp(default),
+        "Greedy forward selection (Ridge, validated on the last season)": greedy_subset(default),
+    }
     with pl.Config(tbl_rows=40, float_precision=5):
-        print("\n== window length and weighting (mean over folds) ==")
-        print(windows_and_weighting(panel, played).sort("mae"))
-        print("\n== injury encodings ==")
-        print(injury_encodings(default).sort("mae"))
-        print("\n== outlier and DNP handling (MAE not comparable across row sets) ==")
-        print(outlier_and_dnp(default))
-        print("\n== greedy forward selection (validate on the last season) ==")
-        print(greedy_subset(default))
+        for title, df in tables.items():
+            print(f"\n== {title} ==")
+            print(df)
+
+    out = Path("RESULTS_processing.md")
+    out.write_text(
+        "# Processing experiments\n\nAll variants scored with Ridge on the same "
+        "expanding-window season folds.\n\n"
+        + "\n".join(_md(t, d) for t, d in tables.items())
+    )
+    print(f"\nwrote {out}")
 
 
 if __name__ == "__main__":

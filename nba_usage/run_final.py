@@ -17,6 +17,7 @@ from .features import feature_columns
 from .hierarchy import ROTATION_COLS
 from .injuries import ABSENCE_COLS, INJURY_START
 from .models import fit_catboost, fit_elasticnet, fit_forest, fit_lightgbm, fit_ridge, fit_xgboost
+from .nets import add_sequence_columns, fit_gru, fit_mlp
 from .roles import N_ROLES
 from .synergy import ABSORPTION_COLS
 
@@ -39,17 +40,27 @@ ALGORITHMS = {
     "catboost": fit_catboost,
     "random_forest": lambda a, b, c: fit_forest(a, b, c, kind="rf"),
     "extra_trees": lambda a, b, c: fit_forest(a, b, c, kind="et"),
+    "mlp_embeddings": fit_mlp,
+    "gru_sequence": fit_gru,
 }
 
 
 def recommended_columns(frame: pl.DataFrame) -> list[str]:
     extra = [c for c in ABSENCE_COLS + ROTATION_COLS if c in frame.columns]
-    cols = [c for c in feature_columns(frame) + extra if c not in EXCLUDED]
+    cols = [
+        c
+        for c in feature_columns(frame) + extra
+        if c not in EXCLUDED and not c.startswith("seq_")
+    ]
     return list(dict.fromkeys(cols))
 
 
 def main() -> None:
-    frame = build(cache=CACHE).filter(pl.col("game_date") >= pl.lit(INJURY_START).str.to_date())
+    frame = build(cache=CACHE)
+    # The GRU needs the lagged sequence columns; they are ignored by everything else.
+    frame = add_sequence_columns(frame).filter(
+        pl.col("game_date") >= pl.lit(INJURY_START).str.to_date()
+    )
     cols = recommended_columns(frame)
     rows = []
 
