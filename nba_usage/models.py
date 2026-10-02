@@ -80,3 +80,112 @@ def fit_ridge(
     model.fit(design_matrix(train, cols), train[target].to_numpy())
     pred = model.predict(design_matrix(valid, cols))
     return metrics(valid[target].to_numpy(), np.asarray(pred)), model
+
+
+def fit_elasticnet(
+    train: pl.DataFrame, valid: pl.DataFrame, cols: list[str], target: str = "usg_pct"
+) -> tuple[dict[str, float], object]:
+    from sklearn.impute import SimpleImputer
+    from sklearn.linear_model import ElasticNetCV
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+
+    # The CV here is over the training rows only; the validation season is
+    # never seen. Folds are contiguous blocks, not shuffled.
+    from sklearn.model_selection import TimeSeriesSplit
+
+    model = make_pipeline(
+        SimpleImputer(strategy="median"),
+        StandardScaler(),
+        ElasticNetCV(l1_ratio=[0.1, 0.5, 0.9, 1.0], cv=TimeSeriesSplit(3), random_state=0, max_iter=5000),
+    )
+    model.fit(design_matrix(train, cols), train[target].to_numpy())
+    pred = model.predict(design_matrix(valid, cols))
+    return metrics(valid[target].to_numpy(), np.asarray(pred)), model
+
+
+def _forest(kind: str):
+    from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
+
+    cls = RandomForestRegressor if kind == "rf" else ExtraTreesRegressor
+    return cls(
+        n_estimators=300,
+        min_samples_leaf=20,
+        max_features=0.4,
+        n_jobs=-1,
+        random_state=0,
+    )
+
+
+def fit_forest(
+    train: pl.DataFrame,
+    valid: pl.DataFrame,
+    cols: list[str],
+    target: str = "usg_pct",
+    kind: str = "rf",
+) -> tuple[dict[str, float], object]:
+    from sklearn.impute import SimpleImputer
+    from sklearn.pipeline import make_pipeline
+
+    model = make_pipeline(SimpleImputer(strategy="median"), _forest(kind))
+    model.fit(design_matrix(train, cols), train[target].to_numpy())
+    pred = model.predict(design_matrix(valid, cols))
+    return metrics(valid[target].to_numpy(), np.asarray(pred)), model
+
+
+def fit_xgboost(
+    train: pl.DataFrame, valid: pl.DataFrame, cols: list[str], target: str = "usg_pct"
+) -> tuple[dict[str, float], object]:
+    import xgboost as xgb
+
+    seasons = sorted(train["season"].unique().to_list())
+    inner_tr = train.filter(pl.col("season") != seasons[-1])
+    inner_va = train.filter(pl.col("season") == seasons[-1])
+
+    model = xgb.XGBRegressor(
+        n_estimators=2000,
+        learning_rate=0.05,
+        max_depth=6,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        reg_lambda=1.0,
+        min_child_weight=20,
+        early_stopping_rounds=100,
+        n_jobs=-1,
+        random_state=0,
+    )
+    model.fit(
+        design_matrix(inner_tr, cols),
+        inner_tr[target].to_numpy(),
+        eval_set=[(design_matrix(inner_va, cols), inner_va[target].to_numpy())],
+        verbose=False,
+    )
+    pred = model.predict(design_matrix(valid, cols))
+    return metrics(valid[target].to_numpy(), np.asarray(pred)), model
+
+
+def fit_catboost(
+    train: pl.DataFrame, valid: pl.DataFrame, cols: list[str], target: str = "usg_pct"
+) -> tuple[dict[str, float], object]:
+    from catboost import CatBoostRegressor, Pool
+
+    seasons = sorted(train["season"].unique().to_list())
+    inner_tr = train.filter(pl.col("season") != seasons[-1])
+    inner_va = train.filter(pl.col("season") == seasons[-1])
+
+    model = CatBoostRegressor(
+        iterations=3000,
+        learning_rate=0.05,
+        depth=6,
+        l2_leaf_reg=3.0,
+        loss_function="RMSE",
+        random_seed=0,
+        verbose=False,
+        early_stopping_rounds=100,
+    )
+    model.fit(
+        Pool(design_matrix(inner_tr, cols), inner_tr[target].to_numpy()),
+        eval_set=Pool(design_matrix(inner_va, cols), inner_va[target].to_numpy()),
+    )
+    pred = model.predict(design_matrix(valid, cols))
+    return metrics(valid[target].to_numpy(), np.asarray(pred)), model

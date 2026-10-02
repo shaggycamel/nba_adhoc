@@ -5,11 +5,13 @@ description = "Ad hoc NBA analysis: predicting player usage for the next game"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "catboost>=1.2.10",
     "httpx>=0.28.1",
     "lightgbm>=4.7.0",
     "polars>=1.44.2",
     "pyarrow>=25.0.1",
     "scikit-learn>=1.9.1",
+    "xgboost>=3.4.1",
 ]
 
 [dependency-groups]
