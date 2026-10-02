@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBA Usage Forecast</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --wash: rgba(11,11,11,0.05);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --good: #006300; --bad: #d03b3b; --base: #898781;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #0ca30c; --bad: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #0ca30c; --bad: #e66767;
+}
+* { box-sizing: border-box; }
+html { background: var(--page); }
+body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 80px; }
+header { padding: 40px 0 8px; display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.1; margin: 0 0 12px; letter-spacing: -0.02em; font-weight: 650; }
+h2 { font-size: 24px; margin: 56px 0 6px; letter-spacing: -0.01em; font-weight: 650; }
+h3 { font-size: 16px; margin: 0 0 2px; font-weight: 650; }
+p { margin: 8px 0; color: var(--ink2); max-width: 78ch; }
+p.lead { font-size: 18px; color: var(--ink); max-width: 70ch; }
+a { color: var(--s1); }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--wash); padding: 1px 5px; border-radius: 4px; }
+.sub { color: var(--muted); font-size: 14px; }
+button.theme { background: var(--surface); color: var(--ink2); border: 1px solid var(--axis); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 24px 0; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; }
+.tile .l { color: var(--ink2); font-size: 14px; }
+.tile .v { font-size: 34px; font-weight: 650; letter-spacing: -0.02em; margin: 2px 0; }
+.tile .d { color: var(--muted); font-size: 13px; }
+.finds { display: grid; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
+.finds li { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; color: var(--ink2); }
+.finds b { color: var(--ink); }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; margin: 16px 0; }
+.card .head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.card .ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; color: var(--ink2); border: 0; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--axis); }
+.seg button[aria-pressed="true"] { background: var(--wash); color: var(--ink); font-weight: 600; }
+.seg button:hover { background: var(--wash); }
+.tbtn { background: transparent; border: 1px solid var(--axis); color: var(--ink2); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted); }
+svg text.ink { fill: var(--ink); } svg text.ink2 { fill: var(--ink2); }
+.card .body, #foldsViz { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; font-size: 13px; color: var(--ink2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+.legend i { width: 14px; height: 0; border-top: 2px solid; display: inline-block; }
+.legend i.dot { width: 9px; height: 9px; border-radius: 50%; border: 0; }
+.legend .off { opacity: 0.35; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink2); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+.tablewrap { overflow-x: auto; }
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink); border: 1px solid var(--axis);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); display: none; max-width: 300px; }
+#tip .t { color: var(--ink2); margin-bottom: 4px; }
+#tip .r { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+#tip .r b { font-weight: 650; }
+#tip .k { display: inline-block; width: 12px; border-top: 2px solid; margin-right: 6px; vertical-align: middle; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.two > *, .card { min-width: 0; }
+@media (max-width: 760px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.good { color: var(--good); } .bad { color: var(--bad); }
+dl.defs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 8px 0; }
+dl.defs dt { color: var(--ink); font-weight: 600; } dl.defs dd { margin: 0; color: var(--ink2); }
+.pill { display: inline-block; border: 1px solid var(--axis); border-radius: 999px; padding: 0 8px; font-size: 12px; color: var(--ink2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <div class="sub">nba_adhoc · usage forecasting · all results from the local parquet files</div>
+    <h1>Predicting a player's usage before tip-off</h1>
+    <p class="lead">Can we forecast how big a share of his team's possessions a player will use in his next game? We tested simple averages, injury information, teammate absences, role models and nine model types on identical time-based splits.</p>
+  </div>
+  <button class="theme" id="themeBtn" aria-label="Toggle light and dark theme">Theme</button>
+</header>
+
+<section id="summary">
+  <div class="tiles">
+    <div class="tile"><div class="l">Best model error (MAE), 2025-26 holdout</div><div class="v">{{best_hold}}</div><div class="d">the average miss is about {{best_pts}} percentage points of usage</div></div>
+    <div class="tile"><div class="l">Best simple average</div><div class="v">{{mw_hold}}</div><div class="d">minutes-weighted EWMA · season mean {{season_hold}}</div></div>
+    <div class="tile"><div class="l">Model improvement</div><div class="v">{{gain_pct}}%</div><div class="d">{{gain_hold}} lower error · 95% CI {{gain_lo}} to {{gain_hi}}</div></div>
+    <div class="tile"><div class="l">Variance explained (R²)</div><div class="v">{{best_r2}}</div><div class="d">simple average: {{mw_r2}}</div></div>
+  </div>
+  <h3>What we found</h3>
+  <ul class="finds">
+    <li><b>The model beats the best simple average, but only modestly.</b> On the untouched 2025-26 holdout the best model's mean absolute error is {{best_hold}} versus {{mw_hold}} for a minutes-weighted moving average. The gap is statistically clear and about {{gain_pct}}% of the error. A single game's usage is mostly noise: within a player-season it varies by a standard deviation of {{noise_sd}}.</li>
+    <li><b>Most of the signal is the player's own recent usage.</b> Removing the usage-history features from the full model raises error by {{loo_core}}, about {{loo_core_x}} times the next-largest group ({{loo_next_name}}, {{loo_next}}).</li>
+    <li><b>Injuries help only through teammates.</b> Removing every injury-derived feature raises error by {{inj_gain}} (95% CI {{inj_lo}} to {{inj_hi}}, about {{inj_pct}}% of the error). A player's own injury-report status adds nothing measurable (change {{own_loo}} when removed). The benefit is concentrated where a lot of usage is missing: when teammates carrying more than 0.30 of usage are out, the model's error is {{seg_gt30_model}} against {{seg_gt30_base}} for a plain average.</li>
+    <li><b>The choice of algorithm barely matters.</b> LightGBM, XGBoost and CatBoost are statistically tied. Ridge regression is within 0.0002, and the neural networks (an MLP with player embeddings and a GRU over recent games) are about 0.0002 behind. The loss function (squared error, absolute error, Huber, Fair) moves MAE by less than 0.0001.</li>
+    <li><b>A handful of variables carries most of it.</b> The five best variables (all usage-history) reach {{top5_hold}} on the holdout, 12 reach {{top12_hold}}, and all {{n_feats}} reach {{all_hold}}.</li>
+  </ul>
+  <p class="note">Scope: the target is usage in games where the player plays at least 10 minutes. Whether a player plays at all is not modelled. Injury information exists only from the 2021-22 season.</p>
+</section>
+
+<section id="setup">
+  <h2>1 · What was predicted, and how it was tested</h2>
+  <p>The target is <code>usg_pct</code> from the player box score: the share of team possessions a player uses while on court (0.20 means 20%). For each player-game we predict it using only what was known before tip-off. Every rolling statistic is computed from games strictly before the target game; the injury report is the pre-game report for that date, never who actually played.</p>
+  <div class="card">
+    <div class="head"><div><h3>Time-based folds (expanding window)</h3><div class="sub">Train on every earlier season, test on the next one. Models were tuned on the three validation folds only; the holdout was never used to choose anything.</div></div></div>
+    <div id="foldsViz"></div>
+  </div>
+  <div class="card">
+    <div class="head"><div><h3>Feature groups</h3><div class="sub">Everything is built from games before the target game.</div></div></div>
+    <div class="tablewrap"><table id="groupTable"></table></div>
+  </div>
+</section>
+
+<section id="processing">
+  <h2>2 · Data processing: how to average a player's past usage</h2>
+  <p>Before any model, we compared single-number predictors on the same validation folds. Averaging windows, decay rates and how history is cleaned all matter at the 0.0005 level, which is about the size of the gap between a model and a good average.</p>
+  <div class="two">
+    <div class="card" id="cWindows"></div>
+    <div class="card" id="cAlpha"></div>
+  </div>
+  <div class="card" id="cHistory"></div>
+  <p class="note">These choices were made on the same validation folds as the models, so they are mildly optimistic. The holdout shows the same ordering. We tested missing history by falling back from season mean to career mean to the league mean for players with little history; rows with fewer than 5 prior games are about 1% of test rows but show the largest improvement from the model (see section 7). {{return_note}}</p>
+</section>
+
+<section id="models">
+  <h2>3 · Which model wins?</h2>
+  <p>Nine model types (Ridge, ElasticNet, random forest, extra trees, LightGBM, XGBoost, CatBoost, an MLP and a GRU) were each tuned on the same three validation folds (a small grid per model) and then scored on the 2025-26 holdout. Lower is better; the axis does not start at zero, because the differences are small.</p>
+  <div class="card" id="cModels"></div>
+  <div class="card" id="cFolds"></div>
+  <div class="card" id="cPaired"></div>
+  <p>Differences between the three boosting libraries are within noise (confidence intervals include zero). The ensemble that averages seven models is better than any single one by a tiny but measurable amount ({{ens_gain}} MAE), which is not worth the added complexity on its own. The seed-to-seed noise of a single LightGBM fit is about {{seed_sd}} MAE.</p>
+  <div class="card"><h3>All models</h3><div class="sub">Best configuration per family, chosen on the three validation folds. Click a family for its full tuning grid.</div><div class="tablewrap"><table id="modelTable"></table></div></div>
+</section>
+
+<section id="loss">
+  <h2>4 · Loss functions and training</h2>
+  <p>The headline metric is <b>mean absolute error (MAE)</b>, the average size of the miss in usage points. We also report <b>RMSE</b> (penalises large misses more) and <b>R²</b> (share of variance explained). The models were trained with a choice of loss function:</p>
+  <dl class="defs">
+    <dt>Squared error (L2)</dt><dd>minimises the mean of (prediction − actual)². Targets the mean; sensitive to outliers. Default for Ridge, forests and the boosting libraries.</dd>
+    <dt>Absolute error (L1)</dt><dd>minimises the mean of |prediction − actual|. Targets the median and matches the MAE metric directly.</dd>
+    <dt>Huber (δ = 0.05)</dt><dd>squared error for misses under 0.05 usage points, absolute error beyond, so rare extreme games (a star leaving injured after three minutes) do not dominate. Used for the final neural networks.</dd>
+    <dt>Fair (c = 0.05)</dt><dd>a smooth robust loss between L1 and L2.</dd>
+  </dl>
+  <div class="card" id="cLoss"></div>
+  <div class="card" id="cCurve"></div>
+  <p class="note">The neural nets predict usage as the player's EWMA plus a learned correction, are trained with AdamW and a one-cycle learning-rate schedule for 12 epochs, and use a single seed. The MLP has 16-dimensional player embeddings (players with 30 or more training games). The GRU reads each player's previous 20 games.</p>
+</section>
+
+<section id="injury">
+  <h2>5 · Does injury information matter?</h2>
+  <p>We tested two things explicitly: the player's own report status (Available, Probable, Questionable, Doubtful, Out) and the absence of teammates. For teammates we used only players on that day's report, weighted by how much usage they normally carry, and separated <i>fresh</i> absences (the player appeared in the last 14 days) from <i>stale</i> ones (already baked into everyone's recent usage).</p>
+  <div class="card" id="cDose"></div>
+  <div class="card" id="cAbl"></div>
+  <div class="card" id="cOwn"></div>
+  <p class="note">Only 127 player-games had an "Out" report but the player played anyway, so the own-status result is also limited by sample size. The chart above compares each player's actual usage to his last-10 average, which is why the baseline is slightly negative.</p>
+</section>
+
+<section id="drivers">
+  <h2>6 · What drives usage?</h2>
+  <div class="two">
+    <div class="card" id="cShap"></div>
+    <div class="card" id="cPerm"></div>
+  </div>
+  <div class="card" id="cTopk"></div>
+</section>
+
+<section id="anatomy">
+  <h2>7 · Where the model is right and wrong</h2>
+  <p>Compare the LightGBM model with the plain EWMA average across situations. The model's edge is largest when history is thin or when teammates are out.</p>
+  <div class="card" id="cSeg"></div>
+  <div class="two">
+    <div class="card" id="cCal"></div>
+    <div class="card" id="cRes"></div>
+  </div>
+</section>
+
+<section id="extras">
+  <h2>8 · Extra data and extra features</h2>
+  <div class="two">
+    <div class="card"><h3>statyx tracking features</h3>
+      <p>Lagged touches, passes, secondary assists, screen assists, contested shots, deflections, box-outs, speed and distance per minute (10-game average) from <code>statyx/advanced_stats</code>, joined by player and date via the ID map. Because that file only starts in 2024-25, the test was train on 2024-25, test on 2025-26 ({{sx_train}} training rows, {{sx_cov}}% coverage on the test set).</p>
+      <p>MAE without them: <b>{{sx_base}}</b>; with them: <b>{{sx_with}}</b>. Paired difference {{sx_diff}} (95% CI {{sx_lo}} to {{sx_hi}}): <b>no detectable gain</b>.</p></div>
+    <div class="card"><h3>Minutes-weighted EWMA features</h3>
+      <p>Since a minutes-weighted EWMA was the best simple average, we added three variants to the full model as features. Paired change in MAE: {{pr_diff}} (95% CI {{pr_lo}} to {{pr_hi}}). The model already contains minutes-weighted rolling usage, so these add little.</p></div>
+  </div>
+  <h3 style="margin-top:24px">Files that were not used as features, and why</h3>
+  <ul>
+    <li style="color:var(--ink2)"><code>statyx/usage_shock</code>: each row was calculated after the fact (<code>calculated_at</code> in September 2026) over windows that run to June 2026. Using it for earlier games would leak the future.</li>
+    <li style="color:var(--ink2)"><code>statyx/play_types</code>, <code>shot_zones</code>, <code>shot_zone_defense</code>, <code>play_type_defense</code>, <code>defense_vs_position</code>, <code>standings</code>: single end-of-season or later snapshots for one season. They cannot be dated to before each game, and there is no earlier history to train on.</li>
+    <li style="color:var(--ink2)"><code>statyx/potential_assists</code> covers 2025-26 only; <code>statyx/contracts</code> has two seasons. Neither has enough history to train and test on separately.</li>
+    <li style="color:var(--ink2)"><code>util/player_id_map_vw</code> was used to join the two sources; <code>nba/player_info</code>, <code>teams</code> and <code>team_roster</code> supplied team names for matching injury reports.</li>
+  </ul>
+</section>
+
+<section id="method">
+  <h2>9 · Method details and caveats</h2>
+  <ul>
+    <li style="color:var(--ink2)"><b>Rows:</b> {{rows}} player-games with at least 10 minutes and at least one prior game, 2013-14 to 2025-26, NBA regular season and playoffs only. {{rows_inj}} of them are in the injury-report era (2021-22 onward); injury features are missing earlier and the models handle that natively (trees) or with an indicator (linear and neural).</li>
+    <li style="color:var(--ink2)"><b>Significance:</b> paired differences in absolute error with 95% confidence intervals from a game-level bootstrap (1,000 resamples), which assumes games are independent of each other.</li>
+    <li style="color:var(--ink2)"><b>Tuning:</b> small grids per model family, selected by mean MAE on the three validation folds. The holdout is shown alongside but never used to choose. Processing choices in section 2 used the same folds.</li>
+    <li style="color:var(--ink2)"><b>Role clustering:</b> k-means (k = 6) on prior-game rate statistics excluding usage, refit on each fold's training data only. It was kept in the model comparison for completeness, but ablations show it adds nothing once injury features are present.</li>
+    <li style="color:var(--ink2)"><b>Limits:</b> the model predicts usage given that the player plays 10 or more minutes; it does not predict whether a player plays. Injury reports are taken as published before the game, but real reports change; 127 games had an "Out" report and the player played. Neural networks used a single seed. Differences below about 0.0001 MAE should not be interpreted.</li>
+  </ul>
+  <p class="sub">Reproduce: <code>uv run python -m usage.baselines</code>, <code>usage.gbm</code>, <code>usage.zoo</code>, <code>usage.zoo losses</code>, <code>usage.nn MLP mse,huber,l1</code>, <code>usage.nn GRU huber</code>, <code>usage.analysis_a</code>, <code>analysis_b</code>, <code>analysis_c</code>, then <code>usage.build_report</code>. Features are built by <code>usage/features.py</code> and <code>usage/absence.py</code>.</p>
+</section>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const DATA = /*DATA*/null;
+const K = DATA.K;
+const f = (x, d) => x.toFixed(d);
+const f4 = x => f(x, 4), f5 = x => f(x, 5), f3 = x => f(x, 3);
+const NS = 'http://www.w3.org/2000/svg';
+const FN = DATA.foldNames;
+const FAMCOL = {Linear: 'var(--s1)', Forest: 'var(--s2)', Boosting: 'var(--s3)', Neural: 'var(--s4)', Baseline: 'var(--base)', Other: 'var(--s5)'};
+const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
+
+/* ---------- narrative tokens ---------- */
+(function tokens() {
+  const seg = DATA.segments['vacated usage by fresh Out teammates'];
+  const last = seg[seg.length - 1];
+  const loo = DATA.ablation.loo.core.vs_full.pooled[0];
+  const others = ['minutes', 'rates', 'context', 'own_injury', 'team_injury', 'hierarchy', 'pairwise', 'roles'];
+  const nextName = others.reduce((a, g) => DATA.ablation.loo[g].vs_full.pooled[0] > DATA.ablation.loo[a].vs_full.pooled[0] ? g : a, others[0]);
+  const next = DATA.ablation.loo[nextName].vs_full.pooled[0];
+  const rg = DATA.inj.return_gap, rgf = n => rg.find(r => r.g === n);
+  const ens = DATA.paired.find(p => p.a.startsWith('Ensemble'));
+  const T = {
+    best_hold: f4(K.best_hold), best_pts: f(K.best_hold * 100, 1), mw_hold: f4(K.mw_hold), season_hold: f4(K.season_hold),
+    gain_pct: f(K.gain_pct, 1), gain_hold: f4(K.gain_hold), gain_lo: f4(K.gain_lo), gain_hi: f4(K.gain_hi),
+    best_r2: f(K.best_r2, 3), mw_r2: f(K.mw_r2, 3), noise_sd: f3(K.noise_sd), resid_sd: f3(K.resid_sd),
+    loo_core: f4(loo), loo_core_x: f(loo / next, 0), loo_next: f5(next), loo_next_name: nextName,
+    return_note: 'Missed games barely change usage on return: compared with the last-10 average, a player back after 3 to 6 missed team games uses ' + f(rgf('3-6').delta * 100, 2) + ' points more, and after 16 or more ' + f(rgf('16+').delta * 100, 2) + ' points (not distinguishable from zero).',
+    inj_gain: f5(K.inj_gain), inj_lo: f5(K.inj_lo), inj_hi: f5(K.inj_hi), inj_pct: f(K.inj_gain / K.best_hold * 100, 1),
+    own_loo: (K.own_loo[0] >= 0 ? '+' : '') + f5(K.own_loo[0]),
+    seg_gt30_model: f4(last.gbm), seg_gt30_base: f4(last.ewma),
+    top5_hold: f4(K.top5_hold), top12_hold: f4(K.top12_hold), all_hold: f4(K.all_hold), n_feats: K.n_feats,
+    ens_gain: f5(-ens.pooled[0]), seed_sd: f5(K.seed_sd),
+    sx_train: K.statyx.train_rows.toLocaleString(), sx_cov: f(K.statyx.test_coverage * 100, 0),
+    sx_base: f4(K.statyx['base features']), sx_with: f4(K.statyx['base + statyx tracking']),
+    sx_diff: f5(K.statyx.paired[0]), sx_lo: f5(K.statyx.paired[1]), sx_hi: f5(K.statyx.paired[2]),
+    pr_diff: f5(K.processed.pooled[0]), pr_lo: f5(K.processed.pooled[1]), pr_hi: f5(K.processed.pooled[2]),
+    rows: K.rows.toLocaleString(), rows_inj: K.rows_inj.toLocaleString(),
+  };
+  document.body.innerHTML = document.body.innerHTML.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in T ? T[k] : m));
+})();
+
+/* ---------- helpers ---------- */
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function h(tag, attrs, parent, text) {
+  const e = document.createElement(tag);
+  for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const tip = document.getElementById('tip');
+function showTip(ev, title, rows) {
+  tip.replaceChildren();
+  if (title) h('div', {class: 't'}, tip, title);
+  for (const r of rows) {
+    const d = h('div', {class: 'r'}, tip);
+    const l = h('span', {}, d);
+    if (r.color) { const k = h('i', {class: 'k'}, l); k.style.borderColor = r.color; }
+    l.appendChild(document.createTextNode(r.k));
+    h('b', {}, d, r.v);
+  }
+  tip.style.display = 'block';
+  const w = tip.offsetWidth, hh = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + hh > innerHeight - 8) y = ev.clientY - hh - 14;
+  tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+function ticks(lo, hi, n) {
+  const span = hi - lo, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const out = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function seg(parent, options, initial, onchange) {
+  const wrap = h('div', {class: 'seg', role: 'group'}, parent);
+  const btns = options.map(o => {
+    const b = h('button', {type: 'button', 'aria-pressed': String(o.id === initial)}, wrap, o.label);
+    b.onclick = () => { btns.forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onchange(o.id); };
+    return b;
+  });
+  return wrap;
+}
+/* card with title, optional controls, chart body and a table toggle */
+function card(host, title, sub) {
+  host.replaceChildren();
+  const head = h('div', {class: 'head'}, host);
+  const t = h('div', {}, head); h('h3', {}, t, title); if (sub) h('div', {class: 'sub'}, t, sub);
+  const ctl = h('div', {class: 'ctl'}, head);
+  const tb = h('button', {class: 'tbtn', type: 'button'}, ctl, 'Table');
+  const body = h('div', {class: 'body'}, host);
+  const legend = h('div', {class: 'legend'}, host);
+  const table = h('div', {class: 'tablewrap'}, host); table.style.display = 'none';
+  const noteEl = h('div', {class: 'note'}, host);
+  let showing = false;
+  tb.onclick = () => { showing = !showing; table.style.display = showing ? 'block' : 'none'; body.style.display = showing ? 'none' : 'block'; legend.style.display = showing ? 'none' : 'flex'; tb.textContent = showing ? 'Chart' : 'Table'; };
+  return {body, legend, ctl, noteEl, setTable(head_, rows) {
+    table.replaceChildren(); const t = h('table', {}, table); const tr = h('tr', {}, h('thead', {}, t));
+    head_.forEach(x => h('th', {}, tr, x));
+    const tbd = h('tbody', {}, t);
+    rows.forEach(r => { const row = h('tr', {}, tbd); r.forEach(c => h('td', {}, row, String(c))); });
+  }};
+}
+function legendItems(legend, items) {
+  legend.replaceChildren();
+  items.forEach(it => {
+    const s = h('span', {}, legend);
+    const i = h('i', {class: it.dot ? 'dot' : ''}, s);
+    if (it.dot) i.style.background = it.color; else i.style.borderColor = it.color;
+    s.appendChild(document.createTextNode(it.label));
+    if (it.onclick) { s.style.cursor = 'pointer'; s.onclick = () => it.onclick(s); }
+  });
+}
+function mkSvg(host, W, H) {
+  host.replaceChildren();
+  const s = el('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img'}, host);
+  s.style.minWidth = Math.min(W, 600) + 'px';
+  return s;
+}
+
+/* dot plot: horizontal rows, one or two dots per row; axis need not start at zero */
+function dotPlot(host, rows, o) {
+  const W = o.W || 720, L = o.left || 190, R = o.R || 70, T = 8, rowH = o.rowH || 30, B = 40;
+  const H = T + rows.length * rowH + B;
+  const svg = mkSvg(host, W, H);
+  const lo = o.min, hi = o.max, x = v => L + (v - lo) / (hi - lo) * (W - L - R);
+  ticks(lo, hi, 6).forEach(t => {
+    el('line', {x1: x(t), x2: x(t), y1: T, y2: H - B, stroke: 'var(--grid)', 'stroke-width': 1}, svg);
+    el('text', {x: x(t), y: H - B + 16, 'text-anchor': 'middle'}, svg, (o.fmt || f4)(t));
+  });
+  if (o.xlabel) el('text', {x: L + (W - L - R) / 2, y: H - 6, 'text-anchor': 'middle'}, svg, o.xlabel);
+  if (o.zero != null) el('line', {x1: x(o.zero), x2: x(o.zero), y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1.5}, svg);
+  rows.forEach((r, i) => {
+    const y = T + i * rowH + rowH / 2;
+    el('text', {x: L - 10, y: y + 4, 'text-anchor': 'end', class: 'ink2'}, svg, r.label);
+    const vals = r.dots.map(d => d.v);
+    if (r.lo != null) el('line', {x1: x(r.lo), x2: x(r.hi), y1: y, y2: y, stroke: r.dots[0].color, 'stroke-width': 2, 'stroke-linecap': 'round'}, svg);
+    else if (r.dots.length > 1) el('line', {x1: x(Math.min(...vals)), x2: x(Math.max(...vals)), y1: y, y2: y, stroke: 'var(--axis)', 'stroke-width': 2}, svg);
+    else el('line', {x1: L, x2: x(vals[0]), y1: y, y2: y, stroke: 'var(--axis)', 'stroke-width': 1}, svg);
+    r.dots.forEach(d => {
+      el('circle', {cx: x(d.v), cy: y, r: 6, fill: d.color, stroke: 'var(--surface)', 'stroke-width': 2}, svg);
+    });
+    if (o.valueLabel !== false) {
+      const last = r.dots.length > 1 ? r.dots.reduce((a, b) => (b.v > a.v ? b : a)) : r.dots[0];
+      const xr = r.hi != null ? Math.max(x(r.hi), x(last.v)) : x(last.v);
+      el('text', {x: xr + 10, y: y + 4, class: 'ink'}, svg, r.labelText != null ? r.labelText : (o.labelFmt || o.fmt || f4)(r.label2 != null ? r.label2 : last.v));
+    }
+    const hit = el('rect', {x: 0, y: y - rowH / 2, width: W, height: rowH, fill: 'transparent', tabindex: 0}, svg);
+    const tipf = ev => showTip(ev, r.label, r.tip || r.dots.map(d => ({k: d.name || '', v: (o.fmt || f4)(d.v), color: d.color})));
+    hit.addEventListener('pointermove', tipf); hit.addEventListener('pointerleave', hideTip);
+    hit.addEventListener('focus', () => { const b = hit.getBoundingClientRect(); tipf({clientX: b.left + 80, clientY: b.top}); });
+    hit.addEventListener('blur', hideTip);
+  });
+}
+
+/* line chart with crosshair; points by category index or numeric x */
+function lineChart(host, series, o) {
+  const W = o.W || 720, H = o.height || 320, L = o.L || 58, R = o.R || 44, T = 12, B = 44;
+  const svg = mkSvg(host, W, H);
+  const xs = o.xs;
+  const xmin = o.xnum ? Math.min(...xs) : 0, xmax = o.xnum ? Math.max(...xs) : xs.length - 1;
+  const xp = i => L + ((o.xnum ? xs[i] : i) - xmin) / (xmax - xmin || 1) * (W - L - R);
+  const all = series.flatMap(s => s.ys.filter(v => v != null));
+  let lo = o.min != null ? o.min : Math.min(...all), hi = o.max != null ? o.max : Math.max(...all);
+  const pad = (hi - lo) * 0.08; if (o.min == null) lo -= pad; if (o.max == null) hi += pad;
+  const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  ticks(lo, hi, 5).forEach(t => {
+    el('line', {x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: 'var(--grid)', 'stroke-width': 1}, svg);
+    el('text', {x: L - 8, y: y(t) + 4, 'text-anchor': 'end'}, svg, (o.yfmt || f4)(t));
+  });
+  el('line', {x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1}, svg);
+  xs.forEach((v, i) => el('text', {x: xp(i), y: H - B + 18, 'text-anchor': 'middle'}, svg, o.xlab ? o.xlab(v, i) : String(v)));
+  if (o.xtitle) el('text', {x: L + (W - L - R) / 2, y: H - 6, 'text-anchor': 'middle'}, svg, o.xtitle);
+  if (o.ytitle) el('text', {x: 4, y: 10}, svg, o.ytitle);
+  const groups = series.map(s => {
+    const g = el('g', {}, svg);
+    const pts = s.ys.map((v, i) => v == null ? null : [xp(i), y(v)]);
+    let d = ''; pts.forEach(p => { if (p) d += (d ? 'L' : 'M') + p[0] + ' ' + p[1]; });
+    el('path', {d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dash || ''}, g);
+    if (!s.noDots) pts.forEach(p => { if (p) el('circle', {cx: p[0], cy: p[1], r: 4, fill: s.color, stroke: 'var(--surface)', 'stroke-width': 2}, g); });
+    return g;
+  });
+  const cross = el('line', {y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden'}, svg);
+  const hit = el('rect', {x: L, y: T, width: W - L - R, height: H - T - B, fill: 'transparent', tabindex: 0}, svg);
+  const move = ev => {
+    const b = svg.getBoundingClientRect(), px = (ev.clientX - b.left) / b.width * W;
+    let best = 0, bd = 1e9; xs.forEach((_, i) => { const d = Math.abs(xp(i) - px); if (d < bd) { bd = d; best = i; } });
+    cross.setAttribute('x1', xp(best)); cross.setAttribute('x2', xp(best)); cross.setAttribute('visibility', 'visible');
+    const rows = series.map((s, si) => ({s, v: s.ys[best], si})).filter(r => r.v != null && !series[r.si].hidden)
+      .sort((a, b) => a.v - b.v).map(r => ({k: r.s.name, v: (o.yfmt || f4)(r.v), color: r.s.color}));
+    showTip(ev, o.xlab ? o.xlab(xs[best], best) : String(xs[best]), rows);
+  };
+  hit.addEventListener('pointermove', move);
+  hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+  hit.addEventListener('focus', () => { const b = hit.getBoundingClientRect(); move({clientX: b.left + b.width / 2, clientY: b.top + 20}); });
+  hit.addEventListener('blur', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+  return groups;
+}
+function lineWithLegend(c, series, o, tableHead, tableRows) {
+  const draw = () => lineChart(c.body, series.filter(s => !s.hidden), o);
+  draw();
+  legendItems(c.legend, series.map(s => ({label: s.name, color: s.color, onclick: node => { s.hidden = !s.hidden; node.classList.toggle('off', !!s.hidden); draw(); }})));
+  c.setTable(tableHead, tableRows);
+}
+
+/* ---------- sections ---------- */
+
+/* folds timeline */
+(function foldsViz() {
+  const host = document.getElementById('foldsViz');
+  const seasons = ['2013-14', '2014-15', '2015-16', '2016-17', '2017-18', '2018-19', '2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25', '2025-26'];
+  const W = 720, L = 130, R = 10, rowH = 34, H = 20 + 4 * rowH + 36;
+  const svg = mkSvg(host, W, H);
+  const bw = (W - L - R) / seasons.length;
+  seasons.forEach((s, i) => { if (i % 2 === 0 || i === seasons.length - 1) el('text', {x: L + i * bw + bw / 2, y: H - 14, 'text-anchor': 'middle'}, svg, s.slice(2)); });
+  el('text', {x: L, y: H - 0}, svg, 'season (start year)');
+  const fold = [['val 2022-23', 9], ['val 2023-24', 10], ['val 2024-25', 11], ['holdout 2025-26', 12]];
+  fold.forEach(([name, idx], r) => {
+    const y = 8 + r * rowH;
+    el('text', {x: L - 10, y: y + 18, 'text-anchor': 'end', class: 'ink2'}, svg, name);
+    seasons.forEach((s, i) => {
+      if (i > idx) return;
+      const train = i < idx;
+      const rect = el('rect', {x: L + i * bw + 1, y, width: bw - 2, height: 24, rx: 4,
+        fill: train ? 'var(--s1)' : (name.startsWith('holdout') ? 'var(--s2)' : 'var(--s3)'), opacity: train ? 0.55 : 1}, svg);
+      rect.addEventListener('pointermove', ev => showTip(ev, s, [{k: train ? 'train' : name.startsWith('holdout') ? 'holdout test' : 'validation', v: ''}]));
+      rect.addEventListener('pointerleave', hideTip);
+    });
+  });
+  const lg = h('div', {class: 'legend'}, host);
+  [['Train', 'var(--s1)'], ['Validation (tuning)', 'var(--s3)'], ['Holdout (never used to choose)', 'var(--s2)']].forEach(([t, c]) => {
+    const s = h('span', {}, lg); const i = h('i', {class: 'dot'}, s); i.style.background = c; s.appendChild(document.createTextNode(t));
+  });
+  const nt = h('div', {class: 'note'}, host);
+  nt.textContent = DATA.folds.map(x => `${x.name}: ${x.train.toLocaleString()} train / ${x.val.toLocaleString()} test rows`).join(' · ');
+})();
+
+/* group table */
+(function groupTable() {
+  const desc = {
+    core: 'Recent usage: last 1/3/5/10/20 games, minutes-weighted last 5/10, EWMA (0.1, 0.3), season and career means, volatility, games of history.',
+    minutes: 'Recent minutes (last 5/10, EWMA), starter rate, minutes last game, season minutes.',
+    rates: 'Per-36 shot attempts, free throws, turnovers, threes, points; assist, rebound and true-shooting percentages (last 10).',
+    context: 'Home or away, rest days, team games missed, playoffs, team and opponent pace and ratings (last 10).',
+    own_injury: "The player's own report status on the day (none, Available, Probable, Questionable, Doubtful, Out).",
+    team_injury: 'Usage and minutes vacated by teammates reported Out (fresh vs stale), Doubtful or Questionable; count and largest single absence.',
+    hierarchy: 'Rank among healthy rotation players, healthy-rotation load, absorption share, and absorption-weighted vacated usage and minutes.',
+    pairwise: "Shrunk with/without usage effect of each currently-out teammate on this player, from prior games only.",
+    roles: 'Role cluster (k-means on rate stats, usage excluded), PCA role scores, vacated usage by absent teammates\' role, same-role vs other-role.',
+  };
+  const t = document.getElementById('groupTable');
+  const hd = h('tr', {}, h('thead', {}, t)); ['Group', 'Features', 'What it contains'].forEach(x => h('th', {}, hd, x));
+  const tb = h('tbody', {}, t);
+  DATA.ablation.order.forEach(g => { const r = h('tr', {}, tb); h('td', {}, r, g); h('td', {}, r, DATA.groups[g]); const d = h('td', {}, r, desc[g]); d.style.textAlign = 'left'; });
+})();
+
+/* processing */
+(function processing() {
+  const P = DATA.processing;
+  let c = card(document.getElementById('cWindows'), 'Rolling window length', 'MAE of a plain average of the last N games (validation mean and holdout).');
+  lineWithLegend(c, [
+    {name: 'Validation mean (3 folds)', color: 'var(--s1)', ys: P.windows.map(r => r.cv)},
+    {name: 'Holdout 2025-26', color: 'var(--s2)', ys: P.windows.map(r => r.holdout)}],
+    {xs: P.windows.map(r => r.w), xlab: v => String(v), xtitle: 'games averaged', W: 480, height: 300, yfmt: f4}, ['Window', 'Validation MAE', 'Holdout MAE'], P.windows.map(r => [r.w, f4(r.cv), f4(r.holdout)]));
+  c.noteEl.textContent = 'Short windows are noisy, long ones are stale: the minimum is near 20 games.';
+  c = card(document.getElementById('cAlpha'), 'EWMA decay rate', 'Exponentially weighted average; a larger alpha forgets faster.');
+  lineWithLegend(c, [
+    {name: 'Validation mean (3 folds)', color: 'var(--s1)', ys: P.alphas.map(r => r.cv)},
+    {name: 'Holdout 2025-26', color: 'var(--s2)', ys: P.alphas.map(r => r.holdout)}],
+    {xs: P.alphas.map(r => r.alpha), xlab: v => String(v), xtitle: 'alpha', W: 480, height: 300}, ['Alpha', 'Validation MAE', 'Holdout MAE'], P.alphas.map(r => [r.alpha, f4(r.cv), f4(r.holdout)]));
+  c.noteEl.textContent = 'The best decay is about 0.1, equivalent to a window of roughly 20 games, and beats every plain window.';
+  c = card(document.getElementById('cHistory'), 'How to clean the history (EWMA, alpha 0.1)', 'Variants on how past games are used. Axis does not start at zero.');
+  const short = n => n.startsWith('EWMA 0.1, need') ? 'needs 10 games, else fallback' : n;
+  const rows = P.history.map(r => ({label: short(r.name), dots: [{v: r.cv, color: 'var(--s1)', name: 'Validation mean'}, {v: r.holdout, color: 'var(--s2)', name: 'Holdout'}], label2: r.holdout}));
+  const all = P.history.flatMap(r => [r.cv, r.holdout]);
+  dotPlot(c.body, rows, {min: Math.floor(Math.min(...all) * 1000 - 0.5) / 1000, max: Math.ceil(Math.max(...all) * 1000 + 0.5) / 1000, left: 250, xlabel: 'MAE'});
+  legendItems(c.legend, [{label: 'Validation mean (3 folds)', color: 'var(--s1)', dot: true}, {label: 'Holdout 2025-26', color: 'var(--s2)', dot: true}]);
+  c.setTable(['Variant', 'Validation MAE', 'Holdout MAE'], P.history.map(r => [r.name, f4(r.cv), f4(r.holdout)]));
+  c.noteEl.textContent = 'Weighting each game by minutes played is the biggest single improvement. Ignoring games under 5 or 10 minutes helps slightly; ignoring games under 20 minutes hurts.';
+})();
+
+/* model comparison */
+(function models() {
+  const M = DATA.models.filter(m => !['MLP (mse)', 'MLP (l1)'].includes(m.name));
+  const base = DATA.simple.filter(s => ['season mean', 'last 10', 'EWMA a=0.1', 'minutes-wtd EWMA a=0.1'].includes(s.name));
+  const ens = Object.entries(DATA.ensembles).map(([name, r]) => ({name, family: 'Other', mae: r.map(x => x.mae)}));
+  const items = [
+    ...base.map(b => ({name: b.name === 'minutes-wtd EWMA a=0.1' ? 'Baseline: minutes-weighted EWMA' : 'Baseline: ' + b.name, family: 'Baseline', mae: b.mae})),
+    ...M.map(m => ({name: m.name + ' · ' + m.config, family: m.family, mae: m.mae, rmse: m.rmse_h, r2: m.r2_h, sec: m.seconds})),
+    ...ens.map(e => ({name: e.name, family: 'Other', mae: e.mae}))];
+  const c = card(document.getElementById('cModels'), 'Model comparison', 'MAE on the 2025-26 holdout (usage points). Lower is better; axis does not start at zero.');
+  const metric = h('div', {}, c.ctl);
+  let which = 'holdout';
+  const draw = () => {
+    const val = it => which === 'holdout' ? it.mae[3] : it.mae.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
+    const sorted = [...items].sort((a, b) => val(a) - val(b));
+    const vs = sorted.map(val);
+    dotPlot(c.body, sorted.map(it => ({label: it.name, dots: [{v: val(it), color: FAMCOL[it.family], name: which === 'holdout' ? 'Holdout MAE' : 'Validation mean MAE'}],
+      tip: [{k: 'Holdout MAE', v: f4(it.mae[3])}, {k: 'Validation mean', v: f4(it.mae.slice(0, 3).reduce((a, b) => a + b, 0) / 3)}].concat(it.r2 != null ? [{k: 'Holdout R²', v: f(it.r2, 3)}, {k: 'Holdout RMSE', v: f4(it.rmse)}] : [])})),
+      {min: Math.floor(Math.min(...vs) * 1000 - 0.3) / 1000, max: Math.ceil(Math.max(...vs) * 1000 + 0.3) / 1000, left: 270, rowH: 26, xlabel: 'mean absolute error'});
+  };
+  seg(metric, [{id: 'holdout', label: 'Holdout 2025-26'}, {id: 'val', label: 'Validation mean'}], 'holdout', v => { which = v; draw(); });
+  draw();
+  legendItems(c.legend, Object.entries(FAMCOL).filter(([k]) => k !== 'Other').map(([k, v]) => ({label: k, color: v, dot: true})).concat([{label: 'Ensemble', color: FAMCOL.Other, dot: true}]));
+  c.setTable(['Model', ...FN.map(n => n.replace('holdout ', 'hold ')), 'R² (holdout)'], items.map(it => [it.name, ...it.mae.map(f4), it.r2 != null ? f(it.r2, 3) : '']));
+  c.noteEl.textContent = 'Boosting, ridge, forests and the neural networks sit within about 0.0005 of each other; the simple averages are 0.0012 to 0.0024 behind.';
+
+  const c2 = card(document.getElementById('cFolds'), 'Consistency across folds', 'Each line is a model; hover for all values at a fold.');
+  const pick = ['Ridge', 'RandomForest', 'LightGBM', 'XGBoost', 'CatBoost', 'MLP (huber)', 'GRU (huber)'];
+  const series = [
+    {name: 'Baseline: minutes-weighted EWMA', color: 'var(--base)', dash: '5 4', ys: DATA.simple.find(s => s.name === 'minutes-wtd EWMA a=0.1').mae},
+    {name: 'Ridge', color: 'var(--s1)', ys: M.find(m => m.name === 'Ridge').mae},
+    {name: 'RandomForest', color: 'var(--s2)', ys: M.find(m => m.name === 'RandomForest').mae},
+    {name: 'LightGBM', color: 'var(--s3)', ys: M.find(m => m.name === 'LightGBM').mae},
+    {name: 'MLP (huber)', color: 'var(--s4)', ys: M.find(m => m.name === 'MLP (huber)').mae},
+    {name: 'GRU (huber)', color: 'var(--s5)', ys: M.find(m => m.name === 'GRU (huber)').mae}];
+  lineWithLegend(c2, series, {xs: FN, xlab: v => v.replace('holdout 2025-26', 'holdout').replace('val 20', 'val '), xtitle: ''}, ['Model', ...FN], series.map(s => [s.name, ...s.ys.map(f4)]));
+  c2.noteEl.textContent = 'The picture is consistent across folds: boosting first, forests and linear models close behind, neural nets near ridge, and the plain average clearly last.';
+
+  const c3 = card(document.getElementById('cPaired'), 'Is the difference real?', 'Paired change in absolute error with 95% confidence interval (negative = first model better). Pooled over all four folds.');
+  const pr = DATA.paired.map(p => ({label: `${p.a} vs ${p.b}`, lo: p.pooled[1], hi: p.pooled[2],
+    dots: [{v: p.pooled[0], color: p.pooled[2] < 0 ? 'var(--s1)' : (p.pooled[1] > 0 ? 'var(--s2)' : 'var(--muted)'), name: 'Mean change'}],
+    tip: [{k: 'Pooled change', v: f5(p.pooled[0])}, {k: '95% CI', v: `${f5(p.pooled[1])} to ${f5(p.pooled[2])}`}, {k: 'Holdout only', v: f5(p.holdout[0])}, {k: 'Holdout 95% CI', v: `${f5(p.holdout[1])} to ${f5(p.holdout[2])}`}]}));
+  dotPlot(c3.body, pr, {min: -0.0026, max: 0.0004, left: 300, rowH: 26, zero: 0, fmt: f4, xlabel: 'change in MAE (usage points)', valueLabel: false});
+  legendItems(c3.legend, [{label: 'first model clearly better', color: 'var(--s1)', dot: true}, {label: 'not distinguishable', color: 'var(--muted)', dot: true}, {label: 'first model clearly worse', color: 'var(--s2)', dot: true}]);
+  c3.setTable(['Comparison', 'Pooled change', 'CI low', 'CI high', 'Holdout change'], DATA.paired.map(p => [`${p.a} vs ${p.b}`, f5(p.pooled[0]), f5(p.pooled[1]), f5(p.pooled[2]), f5(p.holdout[0])]));
+
+  // model table
+  const t = document.getElementById('modelTable');
+  const hd = h('tr', {}, h('thead', {}, t)); ['Model', 'Config', ...FN.map(n => n.replace('holdout ', 'hold ')), 'RMSE hold', 'R² hold', 'Avg fit time per config (s, all 4 folds)'].forEach(x => h('th', {}, hd, x));
+  const tb = h('tbody', {}, t);
+  DATA.models.forEach(m => {
+    const r = h('tr', {}, tb); h('td', {}, r, m.name); h('td', {}, r, m.config);
+    m.mae.forEach(v => h('td', {}, r, f4(v))); h('td', {}, r, f4(m.rmse_h)); h('td', {}, r, f(m.r2_h, 3)); h('td', {}, r, m.seconds != null ? Math.round(m.seconds) : '');
+    if (m.grid) {
+      r.style.cursor = 'pointer'; r.title = 'Click to show tuning grid';
+      let open = false, rows = [];
+      r.onclick = () => {
+        open = !open;
+        if (open) {
+          let prev = r;
+          m.grid.forEach(g => {
+            const gr = h('tr', {}); gr.style.background = 'var(--wash)';
+            h('td', {}, gr, '    ' + g.config); h('td', {}, gr, '');
+            h('td', {colspan: 3}, gr, 'validation mean ' + f4(g.cv)); h('td', {}, gr, 'holdout ' + f4(g.holdout)); h('td', {colspan: 3}, gr, '');
+            prev.after(gr); prev = gr; rows.push(gr);
+          });
+        } else { rows.forEach(x => x.remove()); rows = []; }
+      };
+    }
+  });
+})();
+
+/* losses + curves */
+(function losses() {
+  const c = card(document.getElementById('cLoss'), 'Loss-function comparison', 'Holdout MAE, same features and folds. Axis does not start at zero.');
+  const rows = [];
+  Object.entries(DATA.losses.LightGBM).forEach(([n, r]) => rows.push({label: 'LightGBM · ' + n, dots: [{v: r[3].mae, color: 'var(--s3)', name: 'Holdout MAE'}, {v: r.slice(0, 3).reduce((a, x) => a + x.mae, 0) / 3, color: 'var(--s1)', name: 'Validation mean'}], label2: r[3].mae}));
+  Object.entries(DATA.losses.MLP).forEach(([n, r]) => rows.push({label: 'MLP · ' + ({mse: 'squared error', huber: 'Huber', l1: 'absolute error'}[n] || n), dots: [{v: r[3].mae, color: 'var(--s4)', name: 'Holdout MAE'}, {v: r.slice(0, 3).reduce((a, x) => a + x.mae, 0) / 3, color: 'var(--s1)', name: 'Validation mean'}], label2: r[3].mae}));
+  const vals = rows.flatMap(r => r.dots.map(d => d.v));
+  dotPlot(c.body, rows, {min: Math.floor(Math.min(...vals) * 10000 - 3) / 10000, max: Math.ceil(Math.max(...vals) * 10000 + 3) / 10000, left: 250, xlabel: 'MAE'});
+  legendItems(c.legend, [{label: 'LightGBM holdout', color: 'var(--s3)', dot: true}, {label: 'MLP holdout', color: 'var(--s4)', dot: true}, {label: 'Validation mean', color: 'var(--s1)', dot: true}]);
+  c.setTable(['Model · loss', ...FN.map(n => n.replace('holdout ', 'hold '))], [
+    ...Object.entries(DATA.losses.LightGBM).map(([n, r]) => ['LightGBM · ' + n, ...r.map(x => f4(x.mae))]),
+    ...Object.entries(DATA.losses.MLP).map(([n, r]) => ['MLP · ' + n, ...r.map(x => f4(x.mae))])]);
+  c.noteEl.textContent = 'Every loss lands within 0.0001 MAE of the others for LightGBM and for the MLP. Usage noise is roughly symmetric and mild, so robust losses give no edge.';
+
+  const c2 = card(document.getElementById('cCurve'), 'Neural network learning curves', 'Validation MAE after each epoch, one line per fold.');
+  const sel = h('div', {}, c2.ctl);
+  const names = [['MLP (huber)', 'MLP · Huber'], ['MLP (mse)', 'MLP · squared error'], ['MLP (l1)', 'MLP · absolute error'], ['GRU (huber)', 'GRU · Huber']];
+  const draw = id => {
+    const cur = DATA.curves[id];
+    const series = cur.map((fold, i) => ({name: FN[i], color: SERIES[i], ys: fold.map(e => e.val_mae)}));
+    const col = series.flatMap(s => s.ys);
+    lineWithLegend(c2, series, {xs: cur[0].map(e => e.epoch), xnum: true, xlab: v => String(v), xtitle: 'epoch', min: Math.floor(Math.min(...col) * 10000 - 2) / 10000, max: Math.ceil(Math.max(...col) * 10000 + 2) / 10000},
+      ['Epoch', ...FN], cur[0].map((e, i) => [e.epoch, ...cur.map(fold => f4(fold[i].val_mae))]));
+  };
+  seg(sel, names.map(([id, label]) => ({id, label})), 'MLP (huber)', draw);
+  draw('MLP (huber)');
+  c2.noteEl.textContent = 'The networks are still improving slowly at epoch 12; learning-rate decay flattens the curve. The GRU sees the same engineered features plus the raw last-20-game sequence and gains nothing from it.';
+})();
+
+/* injury */
+(function injury() {
+  const I = DATA.inj;
+  const c = card(document.getElementById('cDose'), 'More vacated usage, more usage for those left', "Actual usage minus the player's last-10 average, by usage vacated by teammates reported Out.");
+  const sel = h('div', {}, c.ctl);
+  const draw = id => {
+    const arr = id === 'fresh' ? I.vacated_curve : I.stale_curve;
+    const rows = arr.map(r => ({label: (r.b === '0' ? 'none' : r.b) + '  (n=' + r.n.toLocaleString() + ')', lo: (r.delta - 1.96 * r.se) * 100, hi: (r.delta + 1.96 * r.se) * 100,
+      dots: [{v: r.delta * 100, color: id === 'fresh' ? 'var(--s1)' : 'var(--s2)', name: 'Mean change'}], label2: r.delta * 100,
+      tip: [{k: 'Mean change', v: f(r.delta * 100, 2) + ' pts'}, {k: '95% CI', v: `${f((r.delta - 1.96 * r.se) * 100, 2)} to ${f((r.delta + 1.96 * r.se) * 100, 2)}`}, {k: 'Player-games', v: r.n.toLocaleString()}]}));
+    dotPlot(c.body, rows, {min: -1, max: 3.2, left: 190, zero: 0, fmt: x => f(x, 1), labelFmt: x => f(x, 2), xlabel: 'change in usage (percentage points)', rowH: 34});
+  };
+  seg(sel, [{id: 'fresh', label: 'Fresh absences'}, {id: 'stale', label: 'Stale absences'}], 'fresh', draw);
+  draw('fresh');
+  legendItems(c.legend, []);
+  c.setTable(['Absence type · vacated usage', 'Player-games', 'Mean change, pts'], [...I.vacated_curve.map(r => ['Fresh · ' + r.b, r.n, f(r.delta * 100, 2)]), ...I.stale_curve.map(r => ['Stale · ' + r.b, r.n, f(r.delta * 100, 2)])]);
+  c.noteEl.textContent = 'Fresh absences (the teammate played in the last 14 days) move usage a lot; stale ones (out for weeks) barely do, because the remaining players\' recent averages already reflect them. Rows: the share of team possessions normally used by the teammates who are out. Injury-report era only.';
+
+  const c2 = card(document.getElementById('cAbl'), 'Which feature groups earn their place?', 'Change in MAE with 95% CI (game-level bootstrap, pooled over four folds). In the Add view a negative change means the group helps; in the Remove view a positive change means the group was helping.');
+  const sel2 = h('div', {}, c2.ctl);
+  const f5z = x => (Math.abs(x) < 5e-6 ? '0.00000' : f5(x));
+  const lab = {core: 'recent usage', minutes: 'minutes', rates: 'per-36 rates', context: 'game context', own_injury: 'own injury status', team_injury: 'teammate injuries', hierarchy: 'rotation hierarchy', pairwise: 'pairwise with/without', roles: 'role clustering'};
+  const draw2 = id => {
+    let rows;
+    if (id === 'add') rows = DATA.ablation.order.slice(1).map(g => { const p = DATA.ablation.add[g].vs_core.pooled; return {g, p}; });
+    else rows = DATA.ablation.order.map(g => { const p = DATA.ablation.loo[g].vs_full.pooled; return {g, p}; });
+    const R = rows.map(({g, p}) => ({label: lab[g], lo: p[1], hi: p[2], dots: [{v: p[0], color: (id === 'add' ? p[2] < 0 : p[1] > 0) ? 'var(--s1)' : 'var(--muted)', name: 'Change in MAE'}], label2: p[0],
+      tip: [{k: 'Change in MAE', v: f5(p[0])}, {k: '95% CI', v: `${f5(p[1])} to ${f5(p[2])}`}, {k: 'Verdict', v: (id === 'add' ? p[2] < 0 : p[1] > 0) ? 'helps' : 'no detectable effect'}]}));
+    if (id === 'loo') Object.entries(DATA.ablation.block).forEach(([n, v]) => { const p = v.vs_full.pooled; R.push({label: 'ALL: ' + n, lo: p[1], hi: p[2], dots: [{v: p[0], color: 'var(--s2)', name: 'Change in MAE'}], label2: p[0], tip: [{k: 'Change in MAE', v: f5(p[0])}, {k: '95% CI', v: `${f5(p[1])} to ${f5(p[2])}`}]}); });
+    const lo = Math.min(...R.map(r => r.lo)), hi = Math.max(...R.map(r => r.hi));
+    dotPlot(c2.body, R, {min: lo - (hi - lo) * 0.05, max: hi + (hi - lo) * 0.18, left: 200, zero: 0, fmt: f5, labelFmt: f5z, xlabel: id === 'add' ? 'change in MAE when added to recent-usage features' : 'change in MAE when removed from the full model', rowH: 28});
+    c2.setTable(['Group', 'Change in MAE', 'CI low', 'CI high'], R.map(r => [r.label, f5(r.dots[0].v), f5(r.lo), f5(r.hi)]));
+  };
+  seg(sel2, [{id: 'add', label: 'Add to recent usage'}, {id: 'loo', label: 'Remove from full model'}], 'add', id => { draw2(id); leg(id); });
+  const leg = id => legendItems(c2.legend, [{label: 'clear effect', color: 'var(--s1)', dot: true}, {label: 'no detectable effect', color: 'var(--muted)', dot: true}].concat(id === 'loo' ? [{label: 'several groups removed together', color: 'var(--s2)', dot: true}] : []));
+  draw2('add'); leg('add');
+  c2.noteEl.textContent = 'Teammate injuries, rotation hierarchy and role features each help a lot when added alone, but they overlap, so removing any one barely matters. Removing all of them together costs 0.00036 MAE. Pairwise effects, own status and role clustering do not help once the others are in.';
+
+  const c3 = card(document.getElementById('cOwn'), "The player's own report status", 'Actual usage minus last-10 average, by status on the report that day.');
+  const names = ['no report', 'Available', 'Probable', 'Questionable', 'Doubtful', 'Out'];
+  const rows = I.own_status.map(r => ({label: names[r.own_sev] + '  (n=' + r.n.toLocaleString() + ')', lo: (r.delta - 1.96 * r.se) * 100, hi: (r.delta + 1.96 * r.se) * 100,
+    dots: [{v: r.delta * 100, color: 'var(--s1)', name: 'Mean change'}], label2: r.delta * 100,
+    tip: [{k: 'Mean change', v: f(r.delta * 100, 2) + ' pts'}, {k: 'Average minutes', v: f(r.min, 1)}, {k: 'Player-games', v: r.n.toLocaleString()}]}));
+  dotPlot(c3.body, rows, {min: -4, max: 3, left: 190, zero: 0, fmt: x => f(x, 1), labelFmt: x => f(x, 2), xlabel: 'change in usage (percentage points)', rowH: 30});
+  c3.setTable(['Status', 'Player-games', 'Mean change, pts', 'Average minutes'], I.own_status.map(r => [names[r.own_sev], r.n, f(r.delta * 100, 2), f(r.min, 1)]));
+  c3.noteEl.textContent = 'Only players who played 10 or more minutes appear here, so players on the report who did play are a selected group. Doubtful and Out have very few rows (35 and 127), so their estimates are wide.';
+})();
+
+/* drivers */
+(function drivers() {
+  const G = DATA.ablation.order, GC = {};
+  G.forEach((g, i) => GC[g] = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)', 'var(--s8)', 'var(--muted)'][i]);
+  const c = card(document.getElementById('cShap'), 'Top variables (mean |SHAP|)', "Average absolute contribution to the prediction, in usage points, from LightGBM on the four test sets.");
+  const S = DATA.importance.shap;
+  dotPlot(c.body, S.map(r => ({label: r.f, dots: [{v: r.v * 100, color: GC[r.g], name: 'mean |SHAP|, pts'}], tip: [{k: 'Group', v: r.g}, {k: 'Mean |SHAP|', v: f(r.v * 100, 3) + ' pts'}, {k: 'Share of tree gain', v: f(r.gain * 100, 1) + '%'}]})),
+    {W: 480, R: 50, min: 0, max: Math.max(...S.map(r => r.v * 100)) * 1.12, left: 120, rowH: 24, fmt: x => f(x, 2), xlabel: 'mean |SHAP| (usage percentage points)'});
+  const used = [...new Set(S.map(r => r.g))];
+  legendItems(c.legend, used.map(g => ({label: g, color: GC[g], dot: true})));
+  c.setTable(['Variable', 'Group', 'Mean |SHAP| (pts)', 'Tree gain share'], S.map(r => [r.f, r.g, f(r.v * 100, 3), f(r.gain * 100, 1) + '%']));
+  c.noteEl.textContent = 'EWMA of usage, minutes-weighted last-10 usage and the season mean dominate. Injury-related variables (healthy_load_total, own_load, t_vac_out_max) enter further down the list.';
+
+  const c2 = card(document.getElementById('cPerm'), 'Permutation importance by group', 'How much MAE rises when a group is shuffled (average of four test sets). Values are in units of 0.0001 MAE; the recent-usage group is far larger and is given in the table.');
+  const P = DATA.importance.perm;
+  const rows = G.map(g => ({label: g, dots: [{v: P[g] * 1e4, color: GC[g], name: 'MAE increase (x1e-4)'}]}));
+  rows.sort((a, b) => b.dots[0].v - a.dots[0].v);
+  const big = rows.filter(r => r.dots[0].v > 50);
+  dotPlot(c2.body, rows.filter(r => r.dots[0].v <= 50), {W: 480, R: 50, min: 0, max: 5.5, left: 100, rowH: 30, fmt: x => f(x, 1), xlabel: 'MAE increase when shuffled (x 0.0001)'});
+  c2.setTable(['Group', 'MAE increase when shuffled'], rows.map(r => [r.label, f(r.dots[0].v / 1e4, 5)]));
+  c2.noteEl.textContent = 'Shuffling the recent-usage group raises MAE by ' + f(P.core, 4) + ' (off the chart, so omitted above; see table). Among the rest, rotation hierarchy matters most, then minutes and teammate injuries. Own injury status is essentially zero: the model barely uses it.';
+
+  const c3 = card(document.getElementById('cTopk'), 'How few variables do we need?', 'LightGBM refit on the top-k variables (ranked by tree gain on each fold\'s training set). Axis does not start at zero.');
+  const tk = DATA.importance.topk, ks = Object.keys(tk).map(Number).sort((a, b) => a - b);
+  const series = FN.map((n, i) => ({name: n, color: SERIES[i], ys: ks.map(k => tk[k][i])}));
+  const mw = DATA.simple.find(s => s.name === 'minutes-wtd EWMA a=0.1').mae;
+  series.push({name: 'Baseline: min-wtd EWMA (holdout)', color: 'var(--base)', dash: '5 4', noDots: true, ys: ks.map(() => mw[3])});
+  lineWithLegend(c3, series, {xs: ks.map((_, i) => i), xlab: (v, i) => String(ks[i]), xtitle: 'number of variables (k)', height: 340}, ['k', ...series.map(s => s.name)], ks.map((k, i) => [k, ...series.map(s => f4(s.ys[i]))]));
+  c3.noteEl.textContent = 'Top 5 on holdout: ' + DATA.importance.k5.join(', ') + '. Top 12 adds: ' + DATA.importance.k12.slice(5).join(', ') + '. The first five variables are all usage history; the injury-related variables arrive between 5 and 20.';
+})();
+
+/* anatomy */
+(function anatomy() {
+  const c = card(document.getElementById('cSeg'), 'Model vs plain average, by situation', 'MAE of LightGBM and the EWMA average on the four test sets pooled. Axis does not start at zero.');
+  const sel = h('div', {}, c.ctl);
+  const keys = Object.keys(DATA.segments);
+  const draw = id => {
+    const arr = DATA.segments[id];
+    const rows = arr.map(r => ({label: r.seg + '  (n=' + r.n.toLocaleString() + ')', dots: [{v: r.ewma, color: 'var(--s2)', name: 'EWMA average'}, {v: r.gbm, color: 'var(--s1)', name: 'LightGBM'}], labelText: `${f4(r.gbm)} vs ${f4(r.ewma)}  (${f((1 - r.gbm / r.ewma) * 100, 0)}% lower)`,
+      tip: [{k: 'EWMA average', v: f4(r.ewma), color: 'var(--s2)'}, {k: 'LightGBM', v: f4(r.gbm), color: 'var(--s1)'}, {k: 'Improvement', v: f((1 - r.gbm / r.ewma) * 100, 1) + '%'}, {k: 'Player-games', v: r.n.toLocaleString()}]}));
+    const vs = arr.flatMap(r => [r.ewma, r.gbm]);
+    dotPlot(c.body, rows, {min: Math.floor(Math.min(...vs) * 1000 - 1) / 1000, max: Math.ceil(Math.max(...vs) * 1000 + 1) / 1000, left: 200, R: 150, rowH: 34, xlabel: 'MAE'});
+    c.setTable(['Segment', 'Player-games', 'EWMA MAE', 'LightGBM MAE', 'Improvement'], arr.map(r => [r.seg, r.n, f4(r.ewma), f4(r.gbm), f((1 - r.gbm / r.ewma) * 100, 1) + '%']));
+  };
+  seg(sel, keys.map(k => ({id: k, label: k.replace(' by fresh Out teammates', '')})), keys[0], draw);
+  draw(keys[0]);
+  legendItems(c.legend, [{label: 'EWMA average', color: 'var(--s2)', dot: true}, {label: 'LightGBM', color: 'var(--s1)', dot: true}]);
+  c.noteEl.textContent = 'Biggest gains: fewer than 5 prior games, and when teammates holding a lot of usage are out. Smallest: established players who played a lot recently.';
+
+  const c2 = card(document.getElementById('cCal'), 'Calibration', 'Mean prediction vs mean actual usage in each prediction decile (all test rows).');
+  const W = 360, H = 320, L = 50, B = 40, T = 10, R = 12;
+  const svg = mkSvg(c2.body, W, H);
+  const cal = DATA.calibration, lo = 0.09, hi = 0.33;
+  const x = v => L + (v - lo) / (hi - lo) * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  ticks(lo, hi, 5).forEach(t => { el('line', {x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: 'var(--grid)'}, svg); el('text', {x: L - 6, y: y(t) + 4, 'text-anchor': 'end'}, svg, f(t, 2)); el('text', {x: x(t), y: H - B + 16, 'text-anchor': 'middle'}, svg, f(t, 2)); });
+  el('line', {x1: x(lo), y1: y(lo), x2: x(hi), y2: y(hi), stroke: 'var(--axis)', 'stroke-width': 1.5}, svg);
+  el('text', {x: L + (W - L - R) / 2, y: H - 4, 'text-anchor': 'middle'}, svg, 'predicted usage');
+  el('text', {x: 2, y: 8}, svg, 'actual');
+  cal.forEach((r, i) => {
+    el('circle', {cx: x(r.pred), cy: y(r.actual), r: 5, fill: 'var(--s1)', stroke: 'var(--surface)', 'stroke-width': 2}, svg);
+    const hit = el('circle', {cx: x(r.pred), cy: y(r.actual), r: 14, fill: 'transparent', tabindex: 0}, svg);
+    hit.addEventListener('pointermove', ev => showTip(ev, 'Decile ' + (i + 1), [{k: 'Predicted', v: f(r.pred, 3)}, {k: 'Actual', v: f(r.actual, 3)}, {k: 'Rows', v: r.n.toLocaleString()}]));
+    hit.addEventListener('pointerleave', hideTip);
+  });
+  c2.setTable(['Decile', 'Mean predicted', 'Mean actual', 'Rows'], cal.map((r, i) => [i + 1, f(r.pred, 4), f(r.actual, 4), r.n]));
+  c2.noteEl.textContent = 'Predictions sit on the diagonal: the model is well calibrated, with no systematic bias for high- or low-usage players.';
+
+  const c3 = card(document.getElementById('cRes'), 'Size of the misses', 'Distribution of prediction minus actual usage. Single games are noisy.');
+  const Hh = DATA.residual, W2 = 360, H2 = 320, L2 = 40, B2 = 40, T2 = 10;
+  const svg2 = mkSvg(c3.body, W2, H2);
+  const mx = Math.max(...Hh.counts), bw = (W2 - L2 - 12) / Hh.counts.length;
+  ticks(0, mx, 4).forEach(t => { const yy = T2 + (1 - t / mx) * (H2 - T2 - B2); el('line', {x1: L2, x2: W2 - 12, y1: yy, y2: yy, stroke: 'var(--grid)'}, svg2); el('text', {x: L2 - 6, y: yy + 4, 'text-anchor': 'end'}, svg2, t >= 1000 ? (t / 1000) + 'k' : t); });
+  Hh.counts.forEach((cnt, i) => {
+    const hh = cnt / mx * (H2 - T2 - B2), bx = L2 + i * bw;
+    const bar = el('rect', {x: bx + 1, y: T2 + (H2 - T2 - B2) - hh, width: Math.max(1, bw - 2), height: hh, fill: 'var(--s1)', rx: 2}, svg2);
+    const hit = el('rect', {x: bx, y: T2, width: bw, height: H2 - T2 - B2, fill: 'transparent', tabindex: 0}, svg2);
+    hit.addEventListener('pointermove', ev => { bar.setAttribute('opacity', 0.7); showTip(ev, f(Hh.edges[i], 3) + ' to ' + f(Hh.edges[i + 1], 3), [{k: 'Player-games', v: cnt.toLocaleString()}]); });
+    hit.addEventListener('pointerleave', () => { bar.setAttribute('opacity', 1); hideTip(); });
+  });
+  [-0.2, -0.1, 0, 0.1, 0.2].forEach(t => el('text', {x: L2 + (t + 0.2) / 0.4 * (W2 - L2 - 12), y: H2 - B2 + 16, 'text-anchor': 'middle'}, svg2, f(t, 1)));
+  el('text', {x: L2 + (W2 - L2 - 12) / 2, y: H2 - 4, 'text-anchor': 'middle'}, svg2, 'prediction minus actual');
+  c3.setTable(['Bin from', 'Bin to', 'Player-games'], Hh.counts.map((n, i) => [f(Hh.edges[i], 3), f(Hh.edges[i + 1], 3), n]));
+  c3.noteEl.textContent = 'Standard deviation of the miss: ' + f3(Hh.sd) + ' usage points; 80% of misses fall between ' + f3(Hh.p10) + ' and +' + f3(Hh.p90) + '. This spread is the floor that better modelling has not broken through.';
+})();
+
+/* theme toggle */
+document.getElementById('themeBtn').onclick = () => {
+  const r = document.documentElement, cur = r.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.setAttribute('data-theme', dark ? 'light' : 'dark');
+};
+</script>
+</body>
+</html>

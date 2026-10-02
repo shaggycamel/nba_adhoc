@@ -184,6 +184,14 @@ def main():
     mn = pl.col("min")
     pr, _ = variant(p, (u * mn).ewm_mean(alpha=al, adjust=False) / mn.ewm_mean(alpha=al, adjust=False), "mw")
     pv["history"].append(score("minutes-weighted EWMA 0.1", pr))
+    mw = np.where(np.isnan(pr), fall, pr)
+    gk = np.concatenate([gid[n] for n in FN])
+    gbm_all = np.concatenate([preds["LightGBM"][n] for n in FN])
+    d_all = np.abs(gbm_all - yk) - np.abs(mw - yk)
+    m = fk == FN[-1]
+    out["paired_mw"] = {"pooled": list(cluster_boot(d_all, gk)), "holdout": list(cluster_boot(d_all[m], gk[m])),
+                        "mw_mae": {n: float(np.abs(mw[fk == n] - yk[fk == n]).mean()) for n in FN},
+                        "mw_metrics": {n: D.metrics(yk[fk == n], mw[fk == n]) for n in FN}}
     pr, _ = variant(p, u.ewm_mean(alpha=al, adjust=False, min_samples=10), "n10")
     pv["history"].append(score("EWMA 0.1, need 10 games else season/career", pr))
     out["processing"] = pv

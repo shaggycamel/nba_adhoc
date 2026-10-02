@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBA Usage Forecast</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --wash: rgba(11,11,11,0.05);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --good: #006300; --bad: #d03b3b; --base: #898781;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #0ca30c; --bad: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.06);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #0ca30c; --bad: #e66767;
+}
+* { box-sizing: border-box; }
+html { background: var(--page); }
+body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px 80px; }
+header { padding: 40px 0 8px; display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+h1 { font-size: clamp(28px, 5vw, 44px); line-height: 1.1; margin: 0 0 12px; letter-spacing: -0.02em; font-weight: 650; }
+h2 { font-size: 24px; margin: 56px 0 6px; letter-spacing: -0.01em; font-weight: 650; }
+h3 { font-size: 16px; margin: 0 0 2px; font-weight: 650; }
+p { margin: 8px 0; color: var(--ink2); max-width: 78ch; }
+p.lead { font-size: 18px; color: var(--ink); max-width: 70ch; }
+a { color: var(--s1); }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--wash); padding: 1px 5px; border-radius: 4px; }
+.sub { color: var(--muted); font-size: 14px; }
+button.theme { background: var(--surface); color: var(--ink2); border: 1px solid var(--axis); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 24px 0; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; }
+.tile .l { color: var(--ink2); font-size: 14px; }
+.tile .v { font-size: 34px; font-weight: 650; letter-spacing: -0.02em; margin: 2px 0; }
+.tile .d { color: var(--muted); font-size: 13px; }
+.finds { display: grid; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
+.finds li { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; color: var(--ink2); }
+.finds b { color: var(--ink); }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 16px; margin: 16px 0; }
+.card .head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.card .ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--axis); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; color: var(--ink2); border: 0; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--axis); }
+.seg button[aria-pressed="true"] { background: var(--wash); color: var(--ink); font-weight: 600; }
+.seg button:hover { background: var(--wash); }
+.tbtn { background: transparent; border: 1px solid var(--axis); color: var(--ink2); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted); }
+svg text.ink { fill: var(--ink); } svg text.ink2 { fill: var(--ink2); }
+.card .body, #foldsViz { overflow-x: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; font-size: 13px; color: var(--ink2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+.legend i { width: 14px; height: 0; border-top: 2px solid; display: inline-block; }
+.legend i.dot { width: 9px; height: 9px; border-radius: 50%; border: 0; }
+.legend .off { opacity: 0.35; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink2); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+.tablewrap { overflow-x: auto; }
+#tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface); color: var(--ink); border: 1px solid var(--axis);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,0.18); display: none; max-width: 300px; }
+#tip .t { color: var(--ink2); margin-bottom: 4px; }
+#tip .r { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+#tip .r b { font-weight: 650; }
+#tip .k { display: inline-block; width: 12px; border-top: 2px solid; margin-right: 6px; vertical-align: middle; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.two > *, .card { min-width: 0; }
+@media (max-width: 760px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.good { color: var(--good); } .bad { color: var(--bad); }
+dl.defs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 8px 0; }
+dl.defs dt { color: var(--ink); font-weight: 600; } dl.defs dd { margin: 0; color: var(--ink2); }
+.pill { display: inline-block; border: 1px solid var(--axis); border-radius: 999px; padding: 0 8px; font-size: 12px; color: var(--ink2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <div class="sub">nba_adhoc · usage forecasting · all results from the local parquet files</div>
+    <h1>Predicting a player's usage before tip-off</h1>
+    <p class="lead">Can we forecast how big a share of his team's possessions a player will use in his next game? We tested simple averages, injury information, teammate absences, role models and nine model types on identical time-based splits.</p>
+  </div>
+  <button class="theme" id="themeBtn" aria-label="Toggle light and dark theme">Theme</button>
+</header>
+
+<section id="summary">
+  <div class="tiles">
+    <div class="tile"><div class="l">Best model error (MAE), 2025-26 holdout</div><div class="v">{{best_hold}}</div><div class="d">the average miss is about {{best_pts}} percentage points of usage</div></div>
+    <div class="tile"><div class="l">Best simple average</div><div class="v">{{mw_hold}}</div><div class="d">minutes-weighted EWMA · season mean {{season_hold}}</div></div>
+    <div class="tile"><div class="l">Model improvement</div><div class="v">{{gain_pct}}%</div><div class="d">{{gain_hold}} lower error · 95% CI {{gain_lo}} to {{gain_hi}}</div></div>
+    <div class="tile"><div class="l">Variance explained (R²)</div><div class="v">{{best_r2}}</div><div class="d">simple average: {{mw_r2}}</div></div>
+  </div>
+  <h3>What we found</h3>
+  <ul class="finds">
+    <li><b>The model beats the best simple average, but only modestly.</b> On the untouched 2025-26 holdout the best model's mean absolute error is {{best_hold}} versus {{mw_hold}} for a minutes-weighted moving average. The gap is statistically clear and about {{gain_pct}}% of the error. A single game's usage is mostly noise: within a player-season it varies by a standard deviation of {{noise_sd}}.</li>
+    <li><b>Most of the signal is the player's own recent usage.</b> Removing the usage-history features from the full model raises error by {{loo_core}}, about {{loo_core_x}} times the next-largest group ({{loo_next_name}}, {{loo_next}}).</li>
+    <li><b>Injuries help only through teammates.</b> Removing every injury-derived feature raises error by {{inj_gain}} (95% CI {{inj_lo}} to {{inj_hi}}, about {{inj_pct}}% of the error). A player's own injury-report status adds nothing measurable (change {{own_loo}} when removed). The benefit is concentrated where a lot of usage is missing: when teammates carrying more than 0.30 of usage are out, the model's error is {{seg_gt30_model}} against {{seg_gt30_base}} for a plain average.</li>
+    <li><b>The choice of algorithm barely matters.</b> LightGBM, XGBoost and CatBoost are statistically tied. Ridge regression is within 0.0002, and the neural networks (an MLP with player embeddings and a GRU over recent games) are about 0.0002 behind. The loss function (squared error, absolute error, Huber, Fair) moves MAE by less than 0.0001.</li>
+    <li><b>A handful of variables carries most of it.</b> The five best variables (all usage-history) reach {{top5_hold}} on the holdout, 12 reach {{top12_hold}}, and all {{n_feats}} reach {{all_hold}}.</li>
+  </ul>
+  <p class="note">Scope: the target is usage in games where the player plays at least 10 minutes. Whether a player plays at all is not modelled. Injury information exists only from the 2021-22 season.</p>
+</section>
+
+<section id="setup">
+  <h2>1 · What was predicted, and how it was tested</h2>
+  <p>The target is <code>usg_pct</code> from the player box score: the share of team possessions a player uses while on court (0.20 means 20%). For each player-game we predict it using only what was known before tip-off. Every rolling statistic is computed from games strictly before the target game; the injury report is the pre-game report for that date, never who actually played.</p>
+  <div class="card">
+    <div class="head"><div><h3>Time-based folds (expanding window)</h3><div class="sub">Train on every earlier season, test on the next one. Models were tuned on the three validation folds only; the holdout was never used to choose anything.</div></div></div>
+    <div id="foldsViz"></div>
+  </div>
+  <div class="card">
+    <div class="head"><div><h3>Feature groups</h3><div class="sub">Everything is built from games before the target game.</div></div></div>
+    <div class="tablewrap"><table id="groupTable"></table></div>
+  </div>
+</section>
+
+<section id="processing">
+  <h2>2 · Data processing: how to average a player's past usage</h2>
+  <p>Before any model, we compared single-number predictors on the same validation folds. Averaging windows, decay rates and how history is cleaned all matter at the 0.0005 level, which is about the size of the gap between a model and a good average.</p>
+  <div class="two">
+    <div class="card" id="cWindows"></div>
+    <div class="card" id="cAlpha"></div>
+  </div>
+  <div class="card" id="cHistory"></div>
+  <p class="note">These choices were made on the same validation folds as the models, so they are mildly optimistic. The holdout shows the same ordering. We tested missing history by falling back from season mean to career mean to the league mean for players with little history; rows with fewer than 5 prior games are about 1% of test rows but show the largest improvement from the model (see section 7). {{return_note}}</p>
+</section>
+
+<section id="models">
+  <h2>3 · Which model wins?</h2>
+  <p>Nine model types (Ridge, ElasticNet, random forest, extra trees, LightGBM, XGBoost, CatBoost, an MLP and a GRU) were each tuned on the same three validation folds (a small grid per model) and then scored on the 2025-26 holdout. Lower is better; the axis does not start at zero, because the differences are small.</p>
+  <div class="card" id="cModels"></div>
+  <div class="card" id="cFolds"></div>
+  <div class="card" id="cPaired"></div>
+  <p>Differences between the three boosting libraries are within noise (confidence intervals include zero). The ensemble that averages seven models is better than any single one by a tiny but measurable amount ({{ens_gain}} MAE), which is not worth the added complexity on its own. The seed-to-seed noise of a single LightGBM fit is about {{seed_sd}} MAE.</p>
+  <div class="card"><h3>All models</h3><div class="sub">Best configuration per family, chosen on the three validation folds. Click a family for its full tuning grid.</div><div class="tablewrap"><table id="modelTable"></table></div></div>
+</section>
+
+<section id="loss">
+  <h2>4 · Loss functions and training</h2>
+  <p>The headline metric is <b>mean absolute error (MAE)</b>, the average size of the miss in usage points. We also report <b>RMSE</b> (penalises large misses more) and <b>R²</b> (share of variance explained). The models were trained with a choice of loss function:</p>
+  <dl class="defs">
+    <dt>Squared error (L2)</dt><dd>minimises the mean of (prediction − actual)². Targets the mean; sensitive to outliers. Default for Ridge, forests and the boosting libraries.</dd>
+    <dt>Absolute error (L1)</dt><dd>minimises the mean of |prediction − actual|. Targets the median and matches the MAE metric directly.</dd>
+    <dt>Huber (δ = 0.05)</dt><dd>squared error for misses under 0.05 usage points, absolute error beyond, so rare extreme games (a star leaving injured after three minutes) do not dominate. Used for the final neural networks.</dd>
+    <dt>Fair (c = 0.05)</dt><dd>a smooth robust loss between L1 and L2.</dd>
+  </dl>
+  <div class="card" id="cLoss"></div>
+  <div class="card" id="cCurve"></div>
+  <p class="note">The neural nets predict usage as the player's EWMA plus a learned correction, are trained with AdamW and a one-cycle learning-rate schedule for 12 epochs, and use a single seed. The MLP has 16-dimensional player embeddings (players with 30 or more training games). The GRU reads each player's previous 20 games.</p>
+</section>
+
+<section id="injury">
+  <h2>5 · Does injury information matter?</h2>
+  <p>We tested two things explicitly: the player's own report status (Available, Probable, Questionable, Doubtful, Out) and the absence of teammates. For teammates we used only players on that day's report, weighted by how much usage they normally carry, and separated <i>fresh</i> absences (the player appeared in the last 14 days) from <i>stale</i> ones (already baked into everyone's recent usage).</p>
+  <div class="card" id="cDose"></div>
+  <div class="card" id="cAbl"></div>
+  <div class="card" id="cOwn"></div>
+  <p class="note">Only 127 player-games had an "Out" report but the player played anyway, so the own-status result is also limited by sample size. The chart above compares each player's actual usage to his last-10 average, which is why the baseline is slightly negative.</p>
+</section>
+
+<section id="drivers">
+  <h2>6 · What drives usage?</h2>
+  <div class="two">
+    <div class="card" id="cShap"></div>
+    <div class="card" id="cPerm"></div>
+  </div>
+  <div class="card" id="cTopk"></div>
+</section>
+
+<section id="anatomy">
+  <h2>7 · Where the model is right and wrong</h2>
+  <p>Compare the LightGBM model with the plain EWMA average across situations. The model's edge is largest when history is thin or when teammates are out.</p>
+  <div class="card" id="cSeg"></div>
+  <div class="two">
+    <div class="card" id="cCal"></div>
+    <div class="card" id="cRes"></div>
+  </div>
+</section>
+
+<section id="extras">
+  <h2>8 · Extra data and extra features</h2>
+  <div class="two">
+    <div class="card"><h3>statyx tracking features</h3>
+      <p>Lagged touches, passes, secondary assists, screen assists, contested shots, deflections, box-outs, speed and distance per minute (10-game average) from <code>statyx/advanced_stats</code>, joined by player and date via the ID map. Because that file only starts in 2024-25, the test was train on 2024-25, test on 2025-26 ({{sx_train}} training rows, {{sx_cov}}% coverage on the test set).</p>
+      <p>MAE without them: <b>{{sx_base}}</b>; with them: <b>{{sx_with}}</b>. Paired difference {{sx_diff}} (95% CI {{sx_lo}} to {{sx_hi}}): <b>no detectable gain</b>.</p></div>
+    <div class="card"><h3>Minutes-weighted EWMA features</h3>
+      <p>Since a minutes-weighted EWMA was the best simple average, we added three variants to the full model as features. Paired change in MAE: {{pr_diff}} (95% CI {{pr_lo}} to {{pr_hi}}). The model already contains minutes-weighted rolling usage, so these add little.</p></div>
+  </div>
+  <h3 style="margin-top:24px">Files that were not used as features, and why</h3>
+  <ul>
+    <li style="color:var(--ink2)"><code>statyx/usage_shock</code>: each row was calculated after the fact (<code>calculated_at</code> in September 2026) over windows that run to June 2026. Using it for earlier games would leak the future.</li>
+    <li style="color:var(--ink2)"><code>statyx/play_types</code>, <code>shot_zones</code>, <code>shot_zone_defense</code>, <code>play_type_defense</code>, <code>defense_vs_position</code>, <code>standings</code>: single end-of-season or later snapshots for one season. They cannot be dated to before each game, and there is no earlier history to train on.</li>
+    <li style="color:var(--ink2)"><code>statyx/potential_assists</code> covers 2025-26 only; <code>statyx/contracts</code> has two seasons. Neither has enough history to train and test on separately.</li>
+    <li style="color:var(--ink2)"><code>util/player_id_map_vw</code> was used to join the two sources; <code>nba/player_info</code>, <code>teams</code> and <code>team_roster</code> supplied team names for matching injury reports.</li>
+  </ul>
+</section>
+
+<section id="method">
+  <h2>9 · Method details and caveats</h2>
+  <ul>
+    <li style="color:var(--ink2)"><b>Rows:</b> {{rows}} player-games with at least 10 minutes and at least one prior game, 2013-14 to 2025-26, NBA regular season and playoffs only. {{rows_inj}} of them are in the injury-report era (2021-22 onward); injury features are missing earlier and the models handle that natively (trees) or with an indicator (linear and neural).</li>
+    <li style="color:var(--ink2)"><b>Significance:</b> paired differences in absolute error with 95% confidence intervals from a game-level bootstrap (1,000 resamples), which assumes games are independent of each other.</li>
+    <li style="color:var(--ink2)"><b>Tuning:</b> small grids per model family, selected by mean MAE on the three validation folds. The holdout is shown alongside but never used to choose. Processing choices in section 2 used the same folds.</li>
+    <li style="color:var(--ink2)"><b>Role clustering:</b> k-means (k = 6) on prior-game rate statistics excluding usage, refit on each fold's training data only. It was kept in the model comparison for completeness, but ablations show it adds nothing once injury features are present.</li>
+    <li style="color:var(--ink2)"><b>Limits:</b> the model predicts usage given that the player plays 10 or more minutes; it does not predict whether a player plays. Injury reports are taken as published before the game, but real reports change; 127 games had an "Out" report and the player played. Neural networks used a single seed. Differences below about 0.0001 MAE should not be interpreted.</li>
+  </ul>
+  <p class="sub">Reproduce: <code>uv run python -m usage.baselines</code>, <code>usage.gbm</code>, <code>usage.zoo</code>, <code>usage.zoo losses</code>, <code>usage.nn MLP mse,huber,l1</code>, <code>usage.nn GRU huber</code>, <code>usage.analysis_a</code>, <code>analysis_b</code>, <code>analysis_c</code>, then <code>usage.build_report</code>. Features are built by <code>usage/features.py</code> and <code>usage/absence.py</code>.</p>
+</section>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const DATA = {"K": {"best_hold": 0.04118883848248745, "best_r2": 0.5075620211880489, "mw_hold": 0.042358086830881096, "mw_r2": 0.4768205284585342, "gain_hold": 0.0011692483483936422, "gain_lo": 0.0009961908083841687, "gain_hi": 0.0013291306360796137, "gain_pct": 2.7603898945247063, "gain_pool": 0.0008586680518118178, "season_hold": 0.04356823106159049, "inj_gain": 0.00035954518227122965, "inj_lo": 0.0003200196605809263, "inj_hi": 0.0003993908756654741, "inj_noown": 0.0003607623075162629, "own_loo": [-1.0075332169610556e-05, -2.547582631242743e-05, 4.384802886685446e-06], "core_gap": 0.0004920003087579137, "noise_sd": 0.05225797332556003, "all_sd": 0.07340377909071492, "resid_sd": 0.052300848229103594, "own_out_played": 127, "rows": 387016, "rows_inj": 116448, "top5_hold": 0.04213853512121375, "top12_hold": 0.04157126815667163, "all_hold": 0.04118947179260959, "n_feats": 73, "seed_sd": 8.708632454087862e-06, "statyx": {"train_rows": 42257, "test_rows": 46508, "test_coverage": 0.9515567214242711, "base features": 0.04150956344504762, "base + statyx tracking": 0.041498477067867544, "paired": [-1.1086377180083221e-05, -6.927745122418888e-05, 4.2946888510141734e-05]}, "processed": {"pooled": [-2.2684881041989478e-05, -4.376063369681741e-05, 1.5566988434493165e-06], "holdout": [1.4897967495407582e-06, -4.2141585031910125e-05, 4.2780219133455997e-05]}}, "folds": [{"name": "val 2022-23", "train": 294147, "val": 23400}, {"name": "val 2023-24", "train": 317547, "val": 23279}, {"name": "val 2024-25", "train": 340826, "val": 22579}, {"name": "holdout 2025-26", "train": 363405, "val": 23611}], "foldNames": ["val 2022-23", "val 2023-24", "val 2024-25", "holdout 2025-26"], "models": [{"name": "Ridge", "family": "Linear", "config": "alpha=1000", "mae": [0.04142132920906075, 0.04123025347030554, 0.04122330230935385, 0.0414061539278446], "rmse_h": 0.0528093258914255, "r2_h": 0.5007550602119981, "seconds": 2.6666666666666665, "grid": [{"config": "alpha=1", "cv": 0.0412991056477692, "holdout": 0.041409299263058585}, {"config": "alpha=100", "cv": 0.041296287359070545, "holdout": 0.041408900979442616}, {"config": "alpha=1000", "cv": 0.04129162832957338, "holdout": 0.0414061539278446}]}, {"name": "ElasticNet", "family": "Linear", "config": "alpha=0.0001", "mae": [0.04141290427026585, 0.04126887128734267, 0.041243370865446626, 0.041462067831487044], "rmse_h": 0.05288043687288941, "r2_h": 0.4994096273844225, "seconds": 30.0, "grid": [{"config": "alpha=0.0001", "cv": 0.04130838214101839, "holdout": 0.041462067831487044}, {"config": "alpha=0.001", "cv": 0.04156800727862276, "holdout": 0.04175432625376715}]}, {"name": "RandomForest", "family": "Forest", "config": "leaf=30", "mae": [0.0414255684305909, 0.04137107428110504, 0.04140796507443284, 0.041593093830945144], "rmse_h": 0.052934907583701035, "r2_h": 0.4983778069684065, "seconds": 262.0, "grid": [{"config": "leaf=30", "cv": 0.04140153592870959, "holdout": 0.041593093830945144}, {"config": "leaf=100", "cv": 0.041486057319698254, "holdout": 0.04177919457295367}]}, {"name": "ExtraTrees", "family": "Forest", "config": "leaf=30", "mae": [0.04147613290901247, 0.04144794939108358, 0.04153696819591611, 0.041737273911365246], "rmse_h": 0.05313474295595814, "r2_h": 0.49458329500873155, "seconds": 54.5, "grid": [{"config": "leaf=30", "cv": 0.04148701683200405, "holdout": 0.041737273911365246}, {"config": "leaf=100", "cv": 0.04158947576902162, "holdout": 0.04192779574920142}]}, {"name": "LightGBM", "family": "Boosting", "config": "leaves=31,child=200", "mae": [0.041151794868102394, 0.04108307766994215, 0.041048484422114145, 0.04118883848248745], "rmse_h": 0.05244807561145312, "r2_h": 0.5075620211880489, "seconds": 48.333333333333336, "grid": [{"config": "leaves=15,child=50", "cv": 0.041111118397304865, "holdout": 0.04121847080693781}, {"config": "leaves=15,child=200", "cv": 0.04110771134213862, "holdout": 0.04119969372068915}, {"config": "leaves=31,child=50", "cv": 0.04109771738260767, "holdout": 0.0412064501206959}, {"config": "leaves=31,child=200", "cv": 0.0410944523200529, "holdout": 0.04118883848248745}, {"config": "leaves=63,child=50", "cv": 0.041118924159436715, "holdout": 0.04119987367341611}, {"config": "leaves=63,child=200", "cv": 0.041102426479858976, "holdout": 0.041209753230036124}]}, {"name": "XGBoost", "family": "Boosting", "config": "depth=4", "mae": [0.04114640581754792, 0.041078475927819075, 0.041078954593348295, 0.04121287485554118], "rmse_h": 0.05246647112573719, "r2_h": 0.5072165275403844, "seconds": 54.333333333333336, "grid": [{"config": "depth=4", "cv": 0.04110127877957176, "holdout": 0.04121287485554118}, {"config": "depth=6", "cv": 0.04110955218581155, "holdout": 0.04120502436173158}, {"config": "depth=8", "cv": 0.0411527845990585, "holdout": 0.04121854829640023}]}, {"name": "CatBoost", "family": "Boosting", "config": "depth=6", "mae": [0.04127013474522533, 0.041086672231865566, 0.04102818355265998, 0.04116854643750127], "rmse_h": 0.052429940579772606, "r2_h": 0.507902504010678, "seconds": 123.5, "grid": [{"config": "depth=6", "cv": 0.04112833017658363, "holdout": 0.04116854643750127}, {"config": "depth=8", "cv": 0.04114843160914674, "holdout": 0.04116490066866374}]}, {"name": "MLP (mse)", "family": "Neural", "config": "mse", "mae": [0.04167942653021497, 0.0412721739329535, 0.041196087963958634, 0.04144501408707772], "rmse_h": 0.05278643266040553, "r2_h": 0.5011878190931236, "seconds": 129.0, "grid": null}, {"name": "MLP (huber)", "family": "Neural", "config": "huber", "mae": [0.041570986949732665, 0.04124905957955307, 0.041174132558777464, 0.04140302020905609], "rmse_h": 0.05282843059992058, "r2_h": 0.5003937734832395, "seconds": 123.0, "grid": null}, {"name": "MLP (l1)", "family": "Neural", "config": "l1", "mae": [0.04150101130106638, 0.04135007984334596, 0.041175321547347765, 0.041433396193661425], "rmse_h": 0.052870182491472704, "r2_h": 0.49960375387837086, "seconds": 124.0, "grid": null}, {"name": "GRU (huber)", "family": "Neural", "config": "huber", "mae": [0.041630629322491904, 0.04144985315292642, 0.04117833711147715, 0.041386859635045854], "rmse_h": 0.05275082561804952, "r2_h": 0.5018605387731037, "seconds": 597.0, "grid": null}], "simple": [{"name": "season mean", "mae": [0.042942937373828725, 0.04303760293404809, 0.04297771254969976, 0.04356823106159049], "r2_h": 0.44518358686546955}, {"name": "career mean", "mae": [0.04658568016799731, 0.04728359684327109, 0.04641242565620566, 0.04678471848528539], "r2_h": 0.36543671468490135}, {"name": "last 1", "mae": [0.057436196581196586, 0.057354353709351776, 0.057740201071792376, 0.05798212697471518], "r2_h": -0.02424170017801619}, {"name": "last 3", "mae": [0.046929223646723646, 0.046851797757635635, 0.046995408713111, 0.04754785904874846], "r2_h": 0.3331458048027116}, {"name": "last 5", "mae": [0.04450070512820512, 0.044554337958388826, 0.04475515744718544, 0.045392690553837906], "r2_h": 0.39494634075212254}, {"name": "last 10", "mae": [0.04292536803011803, 0.04306966656029653, 0.04320254069134334, 0.04359203986170019], "r2_h": 0.4432610533808945}, {"name": "last 20", "mae": [0.0423878654499696, 0.04271217573030216, 0.042547890408736605, 0.04315289159439823], "r2_h": 0.45853627011211784}, {"name": "minutes-wtd last 10", "mae": [0.042468860363415455, 0.04253515231029369, 0.042817548975041364, 0.04305112224388267], "r2_h": 0.4584780996458847}, {"name": "EWMA a=0.1", "mae": [0.04209126220515281, 0.04232524461720305, 0.04240558715557949, 0.04276321141186583], "r2_h": 0.46599042619213693}, {"name": "EWMA a=0.3", "mae": [0.04377290259000562, 0.04374898827334905, 0.043921333319522395, 0.04440024547677347], "r2_h": 0.4207338569748462}, {"name": "minutes-wtd EWMA a=0.1", "mae": [0.04174407966014382, 0.04184332252875566, 0.04195992055071596, 0.042358086830881096], "r2_h": 0.4768205284585342}], "ensembles": {"Ensemble (mean of 7)": [{"fold": "val 2022-23", "mae": 0.04116325351284274, "rmse": 0.0522334322448565, "r2": 0.5309696903723679, "n": 23400}, {"fold": "val 2023-24", "mae": 0.04096164332438149, "rmse": 0.05202799594816775, "r2": 0.5275648384237661, "n": 23279}, {"fold": "val 2024-25", "mae": 0.040950659194603334, "rmse": 0.05235253969342929, "r2": 0.5114503000962273, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.04112326862900299, "rmse": 0.05238212363105048, "r2": 0.5087996963526429, "n": 23611}], "Ensemble (GBMs)": [{"fold": "val 2022-23", "mae": 0.04114526952172736, "rmse": 0.05219914205527731, "r2": 0.5315853060199484, "n": 23400}, {"fold": "val 2023-24", "mae": 0.041047667085995145, "rmse": 0.052081362783660254, "r2": 0.5265951566334346, "n": 23279}, {"fold": "val 2024-25", "mae": 0.041016356354120986, "rmse": 0.05241387896553117, "r2": 0.5103048030923859, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.04115890950072538, "rmse": 0.05240744344771029, "r2": 0.5083247210513497, "n": 23611}]}, "paired": [{"a": "LightGBM", "b": "EWMA baseline", "pooled": [-0.0012783004221724483, -0.0013595422267497098, -0.001196756738459095], "holdout": [-0.0015743729293783816, -0.0017540475425540574, -0.0013946427490015782]}, {"a": "LightGBM", "b": "Season-mean baseline", "pooled": [-0.0020152258378476747, -0.002120747138234121, -0.0019077445288670873], "holdout": [-0.002379392579103033, -0.002619434924735263, -0.0021455280740288714]}, {"a": "LightGBM", "b": "Ridge", "pooled": [-0.0002025590572892769, -0.00024450683212143986, -0.00016092936348175265], "holdout": [-0.00021731544535714866, -0.0003021802490300084, -0.0001355122951516064]}, {"a": "LightGBM", "b": "XGBoost", "pooled": [-1.1007775066058233e-05, -2.8303667442522823e-05, 7.21625977258421e-06], "holdout": [-2.4036373053728854e-05, -5.934568788456785e-05, 1.0029993021065341e-05]}, {"a": "LightGBM", "b": "CatBoost", "pooled": [-2.0624127815715356e-05, -4.8345895514054464e-05, 4.847885142049376e-06], "holdout": [2.0292044986179595e-05, -2.719288306155275e-05, 6.822978337581088e-05]}, {"a": "LightGBM", "b": "RandomForest", "pooled": [-0.0003313501938712636, -0.00037149272046691807, -0.0002908308043529639], "holdout": [-0.0004042553484576956, -0.00048011809902958106, -0.0003267806028270208]}, {"a": "LightGBM", "b": "MLP (huber)", "pooled": [-0.0002322307939970766, -0.00028522976166121334, -0.0001776887018476927], "holdout": [-0.00021418172656864347, -0.0003215042216869687, -0.00011000634666701522]}, {"a": "LightGBM", "b": "GRU (huber)", "pooled": [-0.00029450423722974324, -0.00035400859470893856, -0.0002328455093932457], "holdout": [-0.00019802115255840012, -0.0003222961581281591, -7.611411765874884e-05]}, {"a": "MLP (huber)", "b": "GRU (huber)", "pooled": [-6.227344323266665e-05, -0.00011392536347828805, -8.243072345021193e-06], "holdout": [1.6160574010243347e-05, -8.689258860095133e-05, 0.00011925067248882801]}, {"a": "Ridge", "b": "EWMA baseline", "pooled": [-0.0010757413648831713, -0.0011509826819757533, -0.0009971846143772309], "holdout": [-0.0013570574840212329, -0.001517360965745529, -0.0011854579922784805]}, {"a": "Ensemble (mean of 7)", "b": "LightGBM", "pooled": [-6.80065841773974e-05, -9.03502449004638e-05, -4.573063392589838e-05], "holdout": [-6.556985348446245e-05, -0.00010961061553478253, -2.1606763110059958e-05]}, {"a": "EWMA baseline", "b": "Season-mean baseline", "pooled": [-0.0007369254156752268, -0.0008511391001005947, -0.0006308751467140145], "holdout": [-0.0008050196497246519, -0.001030922227122943, -0.0005900929422958357]}], "paired_mw": {"pooled": [-0.0008586680518118178, -0.0009235112757744896, -0.0007883124278411685], "holdout": [-0.0011692483483936422, -0.0013291306360796137, -0.0009961908083841687]}, "losses": {"LightGBM": {"L2 (squared error)": [{"fold": "val 2022-23", "mae": 0.04114297938428482, "rmse": 0.05219799956495535, "r2": 0.5316058103185597, "n": 23400}, {"fold": "val 2023-24", "mae": 0.04109027789158512, "rmse": 0.052128167655269675, "r2": 0.5257438882283282, "n": 23279}, {"fold": "val 2024-25", "mae": 0.041039239267465215, "rmse": 0.05242981707745301, "r2": 0.5100069429201668, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.041175675372992375, "rmse": 0.052440693998502805, "r2": 0.50770062420533, "n": 23611}], "L1 (absolute error)": [{"fold": "val 2022-23", "mae": 0.0410935010638186, "rmse": 0.05222855104876892, "r2": 0.5310573477152135, "n": 23400}, {"fold": "val 2023-24", "mae": 0.04105866199937974, "rmse": 0.05218131629028799, "r2": 0.5247763148078493, "n": 23279}, {"fold": "val 2024-25", "mae": 0.041067722981305003, "rmse": 0.05253004201838422, "r2": 0.508131809003062, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.0411672736279109, "rmse": 0.052529860181405985, "r2": 0.5060250637983446, "n": 23611}], "Huber (delta=0.05)": [{"fold": "val 2022-23", "mae": 0.041074382773594244, "rmse": 0.052182955369485556, "r2": 0.5318757669582301, "n": 23400}, {"fold": "val 2023-24", "mae": 0.04104595382735514, "rmse": 0.052116729168296114, "r2": 0.5259519974875464, "n": 23279}, {"fold": "val 2024-25", "mae": 0.041043365753656566, "rmse": 0.05248759177233024, "r2": 0.5089264586265947, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.04115697643965263, "rmse": 0.052482768467796675, "r2": 0.5069103393039937, "n": 23611}], "Fair (c=0.05)": [{"fold": "val 2022-23", "mae": 0.04108181018876223, "rmse": 0.0521744713229872, "r2": 0.5320279724006491, "n": 23400}, {"fold": "val 2023-24", "mae": 0.041053680038942275, "rmse": 0.05212766085446961, "r2": 0.5257531098150177, "n": 23279}, {"fold": "val 2024-25", "mae": 0.04102342437501239, "rmse": 0.05246968078634483, "r2": 0.5092615515620154, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.041164103945053376, "rmse": 0.05246714444334931, "r2": 0.5072038793895599, "n": 23611}]}, "MLP": {"mse": [{"fold": "val 2022-23", "mae": 0.04167942653021497, "rmse": 0.05287445337761686, "r2": 0.5193869471831842, "n": 23400}, {"fold": "val 2023-24", "mae": 0.0412721739329535, "rmse": 0.05248406862501477, "r2": 0.5192458887080027, "n": 23279}, {"fold": "val 2024-25", "mae": 0.041196087963958634, "rmse": 0.05271728835350388, "r2": 0.5046189747712169, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.04144501408707772, "rmse": 0.05278643266040553, "r2": 0.5011878190931236, "n": 23611}], "huber": [{"fold": "val 2022-23", "mae": 0.041570986949732665, "rmse": 0.05277123761743039, "r2": 0.5212615168437442, "n": 23400}, {"fold": "val 2023-24", "mae": 0.04124905957955307, "rmse": 0.0525120760772059, "r2": 0.5187326552345907, "n": 23279}, {"fold": "val 2024-25", "mae": 0.041174132558777464, "rmse": 0.052736104510226284, "r2": 0.5042652831917991, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.04140302020905609, "rmse": 0.05282843059992058, "r2": 0.5003937734832395, "n": 23611}], "l1": [{"fold": "val 2022-23", "mae": 0.04150101130106638, "rmse": 0.052754789863357396, "r2": 0.521559897025051, "n": 23400}, {"fold": "val 2023-24", "mae": 0.04135007984334596, "rmse": 0.05266338602879969, "r2": 0.5159551816404839, "n": 23279}, {"fold": "val 2024-25", "mae": 0.041175321547347765, "rmse": 0.0526763586287962, "r2": 0.505387904226724, "n": 22579}, {"fold": "holdout 2025-26", "mae": 0.041433396193661425, "rmse": 0.052870182491472704, "r2": 0.49960375387837086, "n": 23611}]}}, "curves": {"MLP (huber)": [[{"epoch": 1, "train_loss": 0.0011821010912479969, "val_mae": 0.04187202031492932}, {"epoch": 2, "train_loss": 0.0011662695381300864, "val_mae": 0.04172084342568348}, {"epoch": 3, "train_loss": 0.0011581928940813213, "val_mae": 0.0416037457221721}, {"epoch": 4, "train_loss": 0.0011548576368946714, "val_mae": 0.04161128146586893}, {"epoch": 5, "train_loss": 0.0011510078891807704, "val_mae": 0.04163666244176081}, {"epoch": 6, "train_loss": 0.0011480207771434549, "val_mae": 0.041635324622629546}, {"epoch": 7, "train_loss": 0.0011433573025297476, "val_mae": 0.04156388664096848}, {"epoch": 8, "train_loss": 0.001139556315564176, "val_mae": 0.04147791218225008}, {"epoch": 9, "train_loss": 0.001133394336983408, "val_mae": 0.04157129375903015}, {"epoch": 10, "train_loss": 0.0011276350679508133, "val_mae": 0.04156557124859502}, {"epoch": 11, "train_loss": 0.0011234380704088964, "val_mae": 0.041566883438751735}, {"epoch": 12, "train_loss": 0.0011197285040225003, "val_mae": 0.041570986949732665}], [{"epoch": 1, "train_loss": 0.001180869034146466, "val_mae": 0.04168465865726254}, {"epoch": 2, "train_loss": 0.0011628621942829872, "val_mae": 0.04152374717514459}, {"epoch": 3, "train_loss": 0.0011554654060253306, "val_mae": 0.04151981139084243}, {"epoch": 4, "train_loss": 0.001151597991035479, "val_mae": 0.04142317409996412}, {"epoch": 5, "train_loss": 0.0011484722755826574, "val_mae": 0.041390519788652214}, {"epoch": 6, "train_loss": 0.0011454899812092742, "val_mae": 0.04125071251312479}, {"epoch": 7, "train_loss": 0.0011411380947322126, "val_mae": 0.04138637704269865}, {"epoch": 8, "train_loss": 0.0011365911205079196, "val_mae": 0.04124563655286926}, {"epoch": 9, "train_loss": 0.0011308504988038074, "val_mae": 0.041259756768119514}, {"epoch": 10, "train_loss": 0.0011252870255694385, "val_mae": 0.04125294776166436}, {"epoch": 11, "train_loss": 0.0011201919536319787, "val_mae": 0.04122760948226278}, {"epoch": 12, "train_loss": 0.001116894070125646, "val_mae": 0.04124905957955307}], [{"epoch": 1, "train_loss": 0.0011788616182890853, "val_mae": 0.041683115668258594}, {"epoch": 2, "train_loss": 0.001162021131589841, "val_mae": 0.04145807454101779}, {"epoch": 3, "train_loss": 0.0011535841205946493, "val_mae": 0.04148932980744809}, {"epoch": 4, "train_loss": 0.0011501286477728148, "val_mae": 0.04132013140790587}, {"epoch": 5, "train_loss": 0.0011464818952325961, "val_mae": 0.04128677886630362}, {"epoch": 6, "train_loss": 0.0011433975442274615, "val_mae": 0.04129713904638133}, {"epoch": 7, "train_loss": 0.0011391534714080397, "val_mae": 0.04126658279831819}, {"epoch": 8, "train_loss": 0.001134685307152378, "val_mae": 0.04137912391455408}, {"epoch": 9, "train_loss": 0.0011292152458875022, "val_mae": 0.04122343572700323}, {"epoch": 10, "train_loss": 0.0011232811661048225, "val_mae": 0.041158566661175434}, {"epoch": 11, "train_loss": 0.0011183345044761997, "val_mae": 0.04116886421860286}, {"epoch": 12, "train_loss": 0.0011154197880081135, "val_mae": 0.041174132558777464}], [{"epoch": 1, "train_loss": 0.0011770518902671074, "val_mae": 0.041918413888611145}, {"epoch": 2, "train_loss": 0.0011593265972449618, "val_mae": 0.041649184691505726}, {"epoch": 3, "train_loss": 0.0011507431044729317, "val_mae": 0.041431997931335285}, {"epoch": 4, "train_loss": 0.0011477192157978112, "val_mae": 0.04160135507499049}, {"epoch": 5, "train_loss": 0.0011449853809154021, "val_mae": 0.04145575002971571}, {"epoch": 6, "train_loss": 0.001140910692808758, "val_mae": 0.041401018064355345}, {"epoch": 7, "train_loss": 0.0011376372066944924, "val_mae": 0.04147815610865798}, {"epoch": 8, "train_loss": 0.0011333565914672464, "val_mae": 0.04145523478032512}, {"epoch": 9, "train_loss": 0.0011278679544244182, "val_mae": 0.041386463796365146}, {"epoch": 10, "train_loss": 0.0011222750327900116, "val_mae": 0.04138651367872896}, {"epoch": 11, "train_loss": 0.001117382569310775, "val_mae": 0.04140973290135605}, {"epoch": 12, "train_loss": 0.0011142878125053651, "val_mae": 0.04140302020905609}]], "GRU (huber)": [[{"epoch": 1, "train_loss": 0.0011812133135065668, "val_mae": 0.042494955699541884}, {"epoch": 2, "train_loss": 0.0011638975629720623, "val_mae": 0.04180776531175798}, {"epoch": 3, "train_loss": 0.0011563780553302122, "val_mae": 0.041609080511556984}, {"epoch": 4, "train_loss": 0.0011530840991004793, "val_mae": 0.041728077349982455}, {"epoch": 5, "train_loss": 0.0011492042438004339, "val_mae": 0.041493477572392454}, {"epoch": 6, "train_loss": 0.001146040534952812, "val_mae": 0.04159677013202101}, {"epoch": 7, "train_loss": 0.0011419439658519293, "val_mae": 0.041540734692162434}, {"epoch": 8, "train_loss": 0.0011366901159280015, "val_mae": 0.04153094782793242}, {"epoch": 9, "train_loss": 0.0011311884664920331, "val_mae": 0.04153703904291504}, {"epoch": 10, "train_loss": 0.0011241770365858024, "val_mae": 0.04153007952846141}, {"epoch": 11, "train_loss": 0.001118855337699521, "val_mae": 0.04170887628385399}, {"epoch": 12, "train_loss": 0.0011145863853021223, "val_mae": 0.041630629322491904}], [{"epoch": 1, "train_loss": 0.0011783794370587761, "val_mae": 0.0416496873209567}, {"epoch": 2, "train_loss": 0.001160390776859957, "val_mae": 0.04155679284239651}, {"epoch": 3, "train_loss": 0.0011531787817555313, "val_mae": 0.041508408737345716}, {"epoch": 4, "train_loss": 0.0011499064941179744, "val_mae": 0.04129525699088897}, {"epoch": 5, "train_loss": 0.0011466826004085584, "val_mae": 0.04124036666635432}, {"epoch": 6, "train_loss": 0.0011425669580318466, "val_mae": 0.04141158658528897}, {"epoch": 7, "train_loss": 0.0011390050497378198, "val_mae": 0.04133034157337943}, {"epoch": 8, "train_loss": 0.0011344924968421223, "val_mae": 0.04130346411823652}, {"epoch": 9, "train_loss": 0.0011288033051609684, "val_mae": 0.04144102040544256}, {"epoch": 10, "train_loss": 0.0011217312901334478, "val_mae": 0.04138780409523474}, {"epoch": 11, "train_loss": 0.0011156919292391496, "val_mae": 0.04139411347024353}, {"epoch": 12, "train_loss": 0.0011121910369107056, "val_mae": 0.04144985315292642}], [{"epoch": 1, "train_loss": 0.0011786431537967473, "val_mae": 0.04164037629085017}, {"epoch": 2, "train_loss": 0.0011589026023030526, "val_mae": 0.04132165217670179}, {"epoch": 3, "train_loss": 0.001151487659436953, "val_mae": 0.04138299404462112}, {"epoch": 4, "train_loss": 0.0011474409395584762, "val_mae": 0.04156034123633372}, {"epoch": 5, "train_loss": 0.0011448088900892807, "val_mae": 0.041290807957436254}, {"epoch": 6, "train_loss": 0.0011411220941562007, "val_mae": 0.0416038261600767}, {"epoch": 7, "train_loss": 0.0011380857876620925, "val_mae": 0.041042935646652325}, {"epoch": 8, "train_loss": 0.0011325748159423717, "val_mae": 0.04122411570531746}, {"epoch": 9, "train_loss": 0.0011270395767034118, "val_mae": 0.041131393411953945}, {"epoch": 10, "train_loss": 0.0011200363073563657, "val_mae": 0.04117682637392068}, {"epoch": 11, "train_loss": 0.0011139958956551366, "val_mae": 0.041161052679113005}, {"epoch": 12, "train_loss": 0.0011105744967863666, "val_mae": 0.04117833711147715}], [{"epoch": 1, "train_loss": 0.0011754041742148133, "val_mae": 0.04187436562806607}, {"epoch": 2, "train_loss": 0.001156640036865887, "val_mae": 0.04158805865457312}, {"epoch": 3, "train_loss": 0.001149133527311478, "val_mae": 0.041388830620468726}, {"epoch": 4, "train_loss": 0.0011459643889956109, "val_mae": 0.0414552050794879}, {"epoch": 5, "train_loss": 0.0011434760942535783, "val_mae": 0.041298164602527325}, {"epoch": 6, "train_loss": 0.0011398947753706536, "val_mae": 0.04141517431634965}, {"epoch": 7, "train_loss": 0.001135606608120779, "val_mae": 0.04141427380306905}, {"epoch": 8, "train_loss": 0.0011301205212326108, "val_mae": 0.04130520517384252}, {"epoch": 9, "train_loss": 0.0011240249982744294, "val_mae": 0.04125750648551013}, {"epoch": 10, "train_loss": 0.0011179715491926457, "val_mae": 0.041322539512735276}, {"epoch": 11, "train_loss": 0.0011119084603135577, "val_mae": 0.04137361671293379}, {"epoch": 12, "train_loss": 0.00110806897897985, "val_mae": 0.041386859635045854}]], "MLP (mse)": [[{"epoch": 1, "train_loss": 0.002944408527320711, "val_mae": 0.0421211238430606}, {"epoch": 2, "train_loss": 0.0028823707297043646, "val_mae": 0.04180981378905793}, {"epoch": 3, "train_loss": 0.0028583027265206675, "val_mae": 0.04159326439488392}, {"epoch": 4, "train_loss": 0.002847515961614854, "val_mae": 0.041593850795405035}, {"epoch": 5, "train_loss": 0.0028340721230146314, "val_mae": 0.04171222106506173}, {"epoch": 6, "train_loss": 0.0028252312607739373, "val_mae": 0.04176151180184167}, {"epoch": 7, "train_loss": 0.002811789723182924, "val_mae": 0.042130805162567106}, {"epoch": 8, "train_loss": 0.002797679541942825, "val_mae": 0.04170337995302219}, {"epoch": 9, "train_loss": 0.0027788080399511815, "val_mae": 0.0416034133130019}, {"epoch": 10, "train_loss": 0.0027607026134145044, "val_mae": 0.04162581086323302}, {"epoch": 11, "train_loss": 0.002743953125267501, "val_mae": 0.04166737662826848}, {"epoch": 12, "train_loss": 0.0027356694246602675, "val_mae": 0.04167942653021497}], [{"epoch": 1, "train_loss": 0.0029393911493610218, "val_mae": 0.04167625043686658}, {"epoch": 2, "train_loss": 0.0028711601415658213, "val_mae": 0.041533519341580886}, {"epoch": 3, "train_loss": 0.0028489409511615314, "val_mae": 0.0415111529330404}, {"epoch": 4, "train_loss": 0.0028353150658546765, "val_mae": 0.04155538886085993}, {"epoch": 5, "train_loss": 0.00282718121963203, "val_mae": 0.04134394014809845}, {"epoch": 6, "train_loss": 0.0028141450362344903, "val_mae": 0.04130898432616933}, {"epoch": 7, "train_loss": 0.002801153184241844, "val_mae": 0.04143848618236744}, {"epoch": 8, "train_loss": 0.002786102862802111, "val_mae": 0.04122228084124954}, {"epoch": 9, "train_loss": 0.0027692414602273553, "val_mae": 0.04129105393726615}, {"epoch": 10, "train_loss": 0.002751836417009317, "val_mae": 0.04130787149174367}, {"epoch": 11, "train_loss": 0.002736526544192233, "val_mae": 0.04125899613853905}, {"epoch": 12, "train_loss": 0.0027269321120972755, "val_mae": 0.0412721739329535}], [{"epoch": 1, "train_loss": 0.002934562300924028, "val_mae": 0.04167086675363197}, {"epoch": 2, "train_loss": 0.0028672911506756097, "val_mae": 0.04141882823321394}, {"epoch": 3, "train_loss": 0.00284131610931252, "val_mae": 0.04147698059749617}, {"epoch": 4, "train_loss": 0.002831990139357774, "val_mae": 0.04125986075703038}, {"epoch": 5, "train_loss": 0.002818791705890534, "val_mae": 0.04124473390297844}, {"epoch": 6, "train_loss": 0.0028064112585308096, "val_mae": 0.041320968465287336}, {"epoch": 7, "train_loss": 0.0027944939992805883, "val_mae": 0.04128493782602324}, {"epoch": 8, "train_loss": 0.0027786155024738433, "val_mae": 0.041265039971041466}, {"epoch": 9, "train_loss": 0.002762613296469331, "val_mae": 0.04119419962254986}, {"epoch": 10, "train_loss": 0.002743053658522146, "val_mae": 0.04121457234034901}, {"epoch": 11, "train_loss": 0.0027265958659673357, "val_mae": 0.04118522860154749}, {"epoch": 12, "train_loss": 0.002718476781587233, "val_mae": 0.041196087963958634}], [{"epoch": 1, "train_loss": 0.0029305648114373853, "val_mae": 0.04192672815912107}, {"epoch": 2, "train_loss": 0.0028612430958450375, "val_mae": 0.04167014812196655}, {"epoch": 3, "train_loss": 0.0028358369849481196, "val_mae": 0.04151360856504464}, {"epoch": 4, "train_loss": 0.0028267671571937446, "val_mae": 0.041661862271258496}, {"epoch": 5, "train_loss": 0.0028163452637146014, "val_mae": 0.04166887044677144}, {"epoch": 6, "train_loss": 0.0028039118214718797, "val_mae": 0.04139615792676003}, {"epoch": 7, "train_loss": 0.0027916875769272353, "val_mae": 0.041647704517877686}, {"epoch": 8, "train_loss": 0.0027780459486615172, "val_mae": 0.04151725530743417}, {"epoch": 9, "train_loss": 0.002760388872563472, "val_mae": 0.04142318465741393}, {"epoch": 10, "train_loss": 0.002743436808995378, "val_mae": 0.041499952476056236}, {"epoch": 11, "train_loss": 0.0027279427880066978, "val_mae": 0.04144991918579757}, {"epoch": 12, "train_loss": 0.00272162791917884, "val_mae": 0.04144501408707772}]], "MLP (l1)": [[{"epoch": 1, "train_loss": 0.04253384668271219, "val_mae": 0.04204971943138374}, {"epoch": 2, "train_loss": 0.0422031108388096, "val_mae": 0.04173858328242969}, {"epoch": 3, "train_loss": 0.04200068422716141, "val_mae": 0.04163921274008659}, {"epoch": 4, "train_loss": 0.04191321318253871, "val_mae": 0.0415717433678085}, {"epoch": 5, "train_loss": 0.04180942364018166, "val_mae": 0.04174975784808206}, {"epoch": 6, "train_loss": 0.041734857477245105, "val_mae": 0.04180207925507273}, {"epoch": 7, "train_loss": 0.041615017586157564, "val_mae": 0.041565460642367345}, {"epoch": 8, "train_loss": 0.04149291826218381, "val_mae": 0.04158264077492377}, {"epoch": 9, "train_loss": 0.04136259287783744, "val_mae": 0.04162656134781038}, {"epoch": 10, "train_loss": 0.0412058338784235, "val_mae": 0.041547882114679385}, {"epoch": 11, "train_loss": 0.041098825860072415, "val_mae": 0.04151609162691312}, {"epoch": 12, "train_loss": 0.041023976825074804, "val_mae": 0.04150101130106638}], [{"epoch": 1, "train_loss": 0.04249751364156601, "val_mae": 0.041824718699613586}, {"epoch": 2, "train_loss": 0.042118602966787155, "val_mae": 0.04155450984051872}, {"epoch": 3, "train_loss": 0.04195583025414141, "val_mae": 0.04164201912617268}, {"epoch": 4, "train_loss": 0.041849299991370846, "val_mae": 0.04150100620765703}, {"epoch": 5, "train_loss": 0.04176232578778567, "val_mae": 0.04175205310096412}, {"epoch": 6, "train_loss": 0.041680529074817424, "val_mae": 0.041391315792571576}, {"epoch": 7, "train_loss": 0.04156934858817445, "val_mae": 0.041523820384116825}, {"epoch": 8, "train_loss": 0.041462731843183845, "val_mae": 0.041310432721351376}, {"epoch": 9, "train_loss": 0.04131924393390474, "val_mae": 0.041321466979854136}, {"epoch": 10, "train_loss": 0.04118929290175141, "val_mae": 0.04128825508479456}, {"epoch": 11, "train_loss": 0.041074035690824344, "val_mae": 0.04137229911874002}, {"epoch": 12, "train_loss": 0.04101169728572063, "val_mae": 0.04135007984334596}], [{"epoch": 1, "train_loss": 0.04247615935128629, "val_mae": 0.04172335067298209}, {"epoch": 2, "train_loss": 0.04211416151623896, "val_mae": 0.04150724633976568}, {"epoch": 3, "train_loss": 0.04192638613536034, "val_mae": 0.041481746118231785}, {"epoch": 4, "train_loss": 0.04182211654820325, "val_mae": 0.041279496855962855}, {"epoch": 5, "train_loss": 0.04170628809120865, "val_mae": 0.04137121941144681}, {"epoch": 6, "train_loss": 0.04162384671977666, "val_mae": 0.04130747950803009}, {"epoch": 7, "train_loss": 0.04151818907718633, "val_mae": 0.04133386115679982}, {"epoch": 8, "train_loss": 0.0414061878538299, "val_mae": 0.041290264714171514}, {"epoch": 9, "train_loss": 0.04126565207478652, "val_mae": 0.04125564666264842}, {"epoch": 10, "train_loss": 0.04111567110866054, "val_mae": 0.04118709065811306}, {"epoch": 11, "train_loss": 0.04099570989744211, "val_mae": 0.04117666198475387}, {"epoch": 12, "train_loss": 0.04092102971715998, "val_mae": 0.041175321547347765}], [{"epoch": 1, "train_loss": 0.042419346912409235, "val_mae": 0.041996208798580646}, {"epoch": 2, "train_loss": 0.04203033032974759, "val_mae": 0.04171466147236204}, {"epoch": 3, "train_loss": 0.04183161945661727, "val_mae": 0.041578910001764904}, {"epoch": 4, "train_loss": 0.04174984867448935, "val_mae": 0.041613252579501936}, {"epoch": 5, "train_loss": 0.04168892684046209, "val_mae": 0.041494461507160525}, {"epoch": 6, "train_loss": 0.04156739188297732, "val_mae": 0.0414486490099856}, {"epoch": 7, "train_loss": 0.041479855953299664, "val_mae": 0.04159529319876617}, {"epoch": 8, "train_loss": 0.041371861382326805, "val_mae": 0.041433168987045195}, {"epoch": 9, "train_loss": 0.04123386083459672, "val_mae": 0.04136775417450518}, {"epoch": 10, "train_loss": 0.04109346690237997, "val_mae": 0.041478182965274946}, {"epoch": 11, "train_loss": 0.04096001633008485, "val_mae": 0.041449247351578226}, {"epoch": 12, "train_loss": 0.04089849594167517, "val_mae": 0.041433396193661425}]]}, "ablation": {"add": {"minutes": {"mae": {"val 2022-23": 0.04137202296543922, "val 2023-24": 0.04145073518155477, "val 2024-25": 0.04155519269049891, "holdout 2025-26": 0.04185336166939231}, "vs_core": {"pooled": [-5.28455366099567e-05, -7.552947817201594e-05, -3.0085751878754533e-05], "holdout": [-4.927154359212076e-05, -9.417881916407371e-05, -6.143024857796529e-06]}}, "rates": {"mae": {"val 2022-23": 0.041396063257454346, "val 2023-24": 0.04147318500282761, "val 2024-25": 0.041548659733176854, "holdout 2025-26": 0.0418691248540107}, "vs_core": {"pooled": [-3.874148540649347e-05, -6.188974815855502e-05, -1.790230669349467e-05], "holdout": [-3.350835897373355e-05, -7.787464698266336e-05, 1.2435462410324234e-05]}}, "context": {"mae": {"val 2022-23": 0.041410426883211074, "val 2023-24": 0.04145957919372077, "val 2024-25": 0.041574298718530606, "holdout 2025-26": 0.041832223873385505}, "vs_core": {"pooled": [-4.168097211066821e-05, -6.483452878182738e-05, -1.975280845398591e-05], "holdout": [-7.040933959892957e-05, -0.00011399438798053396, -2.6558092336820006e-05]}}, "own_injury": {"mae": {"val 2022-23": 0.041455132568035534, "val 2023-24": 0.04149499096724984, "val 2024-25": 0.04159717454450077, "holdout 2025-26": 0.04189077644894431}, "vs_core": {"pooled": [-1.0919506182988026e-06, -1.1784110054308617e-05, 1.0525334147796157e-05], "holdout": [-1.1856764040129778e-05, -3.344434291213531e-05, 7.97708042636017e-06]}}, "team_injury": {"mae": {"val 2022-23": 0.04129884370421076, "val 2023-24": 0.04124373649078026, "val 2024-25": 0.041317126626668206, "holdout 2025-26": 0.04140449344521178}, "vs_core": {"pooled": [-0.0002951722390795188, -0.0003337641780975847, -0.00025531142506859375], "holdout": [-0.0004981397677726573, -0.0005892251382961706, -0.0004114974214509492]}}, "hierarchy": {"mae": {"val 2022-23": 0.041271129810705624, "val 2023-24": 0.041192225614404526, "val 2024-25": 0.04113556685063704, "holdout 2025-26": 0.04135154190234887}, "vs_core": {"pooled": [-0.00037267176917799114, -0.0004156497038622275, -0.0003279460782729974], "holdout": [-0.0005510913106355659, -0.0006586706523579733, -0.00044462613600113266]}}, "pairwise": {"mae": {"val 2022-23": 0.04135926255453313, "val 2023-24": 0.04147877364036067, "val 2024-25": 0.04144575274190478, "holdout 2025-26": 0.04173563556670388}, "vs_core": {"pooled": [-0.00010557100950772906, -0.00013954943423208208, -7.246104500182507e-05], "holdout": [-0.00016699764628055612, -0.00024386307317185804, -9.179706479215785e-05]}}, "roles": {"mae": {"val 2022-23": 0.04132568359228502, "val 2023-24": 0.04128847180362479, "val 2024-25": 0.04126397461456978, "holdout 2025-26": 0.04144891913062178}, "vs_core": {"pooled": [-0.0002788238095100109, -0.0003165437294589836, -0.00024038745228283721], "holdout": [-0.0004537140823626591, -0.0005442834900704885, -0.00036581732566099714]}}}, "loo": {"core": {"mae": {"val 2022-23": 0.04194639324865665, "val 2023-24": 0.041790840244251025, "val 2024-25": 0.04191398354550027, "holdout 2025-26": 0.04205165461706984}, "vs_full": {"pooled": [0.000806775871594314, 0.0007399717938130797, 0.000868554440741025], "holdout": [0.0008580735762362318, 0.0007153047925387313, 0.000991708332339117]}}, "minutes": {"mae": {"val 2022-23": 0.04113625657618882, "val 2023-24": 0.04111192008083518, "val 2024-25": 0.04104002844797251, "holdout 2025-26": 0.041193351997526585}, "vs_full": {"pooled": [1.7688626137114276e-06, -1.3935242565472948e-05, 1.8190615051089046e-05], "holdout": [-2.2904330702535646e-07, -3.3168718922500814e-05, 2.961620652296805e-05]}}, "rates": {"mae": {"val 2022-23": 0.04114775518686116, "val 2023-24": 0.04109779721162675, "val 2024-25": 0.04108092619478548, "holdout 2025-26": 0.04119633600992867}, "vs_full": {"pooled": [1.1828053081414104e-05, -6.243779309517947e-06, 3.073080075235547e-05], "holdout": [2.754969095059719e-06, -3.450935744641358e-05, 3.870073908909698e-05]}}, "context": {"mae": {"val 2022-23": 0.04118360089983389, "val 2023-24": 0.041113669499942405, "val 2024-25": 0.04107297172310346, "holdout 2025-26": 0.04124530188751683}, "vs_full": {"pooled": [3.535377213607873e-05, 1.6364597660232676e-05, 5.6108586177484934e-05], "holdout": [5.1720846683220455e-05, 1.5089952247945671e-05, 8.702899282530668e-05]}}, "own_injury": {"mae": {"val 2022-23": 0.0411195135606785, "val 2023-24": 0.04109119640694755, "val 2024-25": 0.04103522634619535, "holdout 2025-26": 0.04118838317359138}, "vs_full": {"pooled": [-1.0075332169610556e-05, -2.547582631242743e-05, 4.384802886685446e-06], "holdout": [-5.197867242230522e-06, -3.28661504030186e-05, 2.2015286027190663e-05]}}, "team_injury": {"mae": {"val 2022-23": 0.04117078268101522, "val 2023-24": 0.041127413275216414, "val 2024-25": 0.0410919075333625, "holdout 2025-26": 0.04125108430136899}, "vs_full": {"pooled": [4.164301028389127e-05, 2.3265539433865166e-05, 5.885000051243061e-05], "holdout": [5.7503260535382346e-05, 2.4974701101732546e-05, 9.650805608936791e-05]}}, "hierarchy": {"mae": {"val 2022-23": 0.04116353381420758, "val 2023-24": 0.04112745379761212, "val 2024-25": 0.04112153957655588, "holdout 2025-26": 0.04126246961152034}, "vs_full": {"pooled": [4.9925648180256505e-05, 2.9192049588360207e-05, 7.135255285357388e-05], "holdout": [6.888857068672705e-05, 1.9518960177390445e-05, 0.00012064187373601751]}}, "pairwise": {"mae": {"val 2022-23": 0.04114544251509071, "val 2023-24": 0.04105102655700622, "val 2024-25": 0.041049292488567195, "holdout 2025-26": 0.04119620228496573}, "vs_full": {"pooled": [-8.203447431587871e-06, -2.388164900182986e-05, 7.2264680005795985e-06], "holdout": [2.621244132127276e-06, -3.0245246492572155e-05, 3.44944256471589e-05]}}, "roles": {"mae": {"val 2022-23": 0.041122851811372534, "val 2023-24": 0.0410786609766122, "val 2024-25": 0.041045974466088875, "holdout 2025-26": 0.04120234320898529}, "vs_full": {"pooled": [-6.214033154598468e-06, -2.309572904081089e-05, 1.0563999539809782e-05], "holdout": [8.762168151684549e-06, -2.3790472696626e-05, 4.066951373181366e-05]}}}, "block": {"all injury-derived": {"mae": {"val 2022-23": 0.041323613763961556, "val 2023-24": 0.04138681630824235, "val 2024-25": 0.04144885769046425, "holdout 2025-26": 0.041752917712335774}, "vs_full": {"pooled": [0.00035954518227122965, 0.0003200196605809263, 0.0003993908756654741], "holdout": [0.0005593366715021629, 0.0004723171197888272, 0.0006585914677393045]}}, "team-level injury (no own)": {"mae": {"val 2022-23": 0.041312622557086245, "val 2023-24": 0.041415652448594444, "val 2024-25": 0.041438886428735756, "holdout 2025-26": 0.041749702772374504}, "vs_full": {"pooled": [0.0003607623075162629, 0.0003213700974875761, 0.0003988565278882785], "holdout": [0.0005561217315408946, 0.0004631603152906675, 0.000653491875762021]}}}, "core": {"mae": {"val 2022-23": 0.041442111426650184, "val 2023-24": 0.041494727217354845, "val 2024-25": 0.041603033654666936, "holdout 2025-26": 0.04190263321298444}, "vs_full": {"pooled": [0.0004920003087579137, 0.0004448402846722793, 0.0005401069277134273], "holdout": [0.0007090521721508253, 0.0006012845815125097, 0.0008194431370067804]}}, "seed_pair": {"pooled": [-5.292226872529851e-06, -2.1005950973398294e-05, 1.0511537438691625e-05], "holdout": [-2.0636250278028066e-05, -5.0948831837076984e-05, 9.070361537028086e-06]}, "order": ["core", "minutes", "rates", "context", "own_injury", "team_injury", "hierarchy", "pairwise", "roles"]}, "importance": {"shap": [{"f": "usg_ew1", "v": 0.01749127134455931, "g": "core", "gain": 0.570785576322008}, {"f": "usgw_l10", "v": 0.011713906289051172, "g": "core", "gain": 0.22236329109640063}, {"f": "usg_season", "v": 0.006391702453252306, "g": "core", "gain": 0.0694618032094302}, {"f": "usg_career", "v": 0.0037951387870435566, "g": "core", "gain": 0.009212346893105034}, {"f": "usgw_l5", "v": 0.00329268373119875, "g": "core", "gain": 0.014139904091717198}, {"f": "usg_l20", "v": 0.0017424914177285686, "g": "core", "gain": 0.05031363708800452}, {"f": "healthy_load_total", "v": 0.001312105438735048, "g": "hierarchy", "gain": 0.0024749000109229305}, {"f": "ast_pct_l10", "v": 0.0013058112609430832, "g": "rates", "gain": 0.0026539634340568084}, {"f": "usg_l1", "v": 0.0012290645680720228, "g": "core", "gain": 0.0023311818365884325}, {"f": "usg_l10", "v": 0.0012054594136628961, "g": "core", "gain": 0.0010547855206548414}, {"f": "own_load", "v": 0.0011420252677473547, "g": "hierarchy", "gain": 0.004739155622980559}, {"f": "t_vac_out_max", "v": 0.0011204912211500314, "g": "team_injury", "gain": 0.0006588519929640905}, {"f": "n_games", "v": 0.0010897702216708703, "g": "core", "gain": 0.004767675131520736}, {"f": "tov36_l10", "v": 0.0009333348609453526, "g": "rates", "gain": 0.001620871424899578}, {"f": "team_off_rating_l10", "v": 0.0008549071598903588, "g": "context", "gain": 0.0014502802091606853}, {"f": "fg3a36_l10", "v": 0.0007324180470551353, "g": "rates", "gain": 0.0014238003753326593}], "perm": {"core": 0.029489782803001945, "minutes": 0.00014792017490797052, "rates": 7.342495468287748e-05, "context": 7.386911694232344e-05, "own_injury": 3.106502435065023e-07, "team_injury": 0.00010760364443753874, "hierarchy": 0.0004573813857654055, "pairwise": 1.527398026385472e-05, "roles": 8.028921828403164e-05}, "topk": {"1": [0.04204175319436625, 0.042212766091386994, 0.04223693809490166, 0.04260486499576166], "2": [0.041775237163194145, 0.04189285903609257, 0.0419751147271609, 0.04236386970017388], "3": [0.04169370114164757, 0.0419287484484727, 0.04187177042303751, 0.042231241487419156], "5": [0.04164724304738922, 0.04168032979237929, 0.041828791336901684, 0.04213853512121375], "8": [0.04142281287119063, 0.04149930042565702, 0.04162439127721666, 0.041950566427442874], "12": [0.041392967915705174, 0.04150079931097948, 0.041373819392495896, 0.04157126815667163], "20": [0.04127322599373136, 0.0412681090274048, 0.04125394753212175, 0.041404409704254345], "30": [0.04125326696843575, 0.041216252456259324, 0.041224915372557146, 0.041374242945334025], "45": [0.04124021411508068, 0.04111772246260933, 0.04115704040447301, 0.041278163631285766], "73": [0.04110869465423817, 0.04112168313208955, 0.04108291732367944, 0.04118947179260959]}, "k5": ["usg_ew1", "usgw_l10", "usg_season", "usg_l20", "usgw_l5"], "k12": ["usg_ew1", "usgw_l10", "usg_season", "usg_l20", "usgw_l5", "usg_career", "own_load", "n_games", "healthy_load_total", "min_ew1", "usg_ew3", "ast_pct_l10"]}, "groups": {"core": 14, "minutes": 8, "rates": 8, "context": 11, "own_injury": 1, "team_injury": 9, "hierarchy": 7, "pairwise": 3, "roles": 12}, "inj": {"own_status": [{"own_sev": 0, "n": 108706, "delta": -0.00012302008563070535, "min": 25.40233289790812, "se": 0.0001672999424587089}, {"own_sev": 1, "n": 2818, "delta": 0.0017712353689997415, "min": 25.860894251242016, "se": 0.0010365827399360602}, {"own_sev": 2, "n": 1892, "delta": 0.0007082794305178029, "min": 28.347780126849894, "se": 0.0012556525972459804}, {"own_sev": 3, "n": 2870, "delta": 0.0016891686024003091, "min": 26.913240418118466, "se": 0.001028646472318064}, {"own_sev": 4, "n": 35, "delta": -0.009291428571428567, "min": 23.942857142857143, "se": 0.011198661663306896}, {"own_sev": 5, "n": 127, "delta": 0.005953018372703413, "min": 23.905511811023622, "se": 0.005642048988882214}], "vacated_curve": [{"b": "0", "n": 51576, "delta": -0.0019274161985641167, "se": 0.00024120977333712604}, {"b": "<.05", "n": 13697, "delta": -0.0036190951036665425, "se": 0.00046653753021139714}, {"b": ".05-.1", "n": 11754, "delta": -0.003620774353073995, "se": 0.0004947506611259445}, {"b": ".1-.2", "n": 17633, "delta": -0.0003117238016021547, "se": 0.00041084791741745303}, {"b": ".2-.3", "n": 11705, "delta": 0.005110488632588162, "se": 0.0005169682725388054}, {"b": ".3-.45", "n": 6748, "delta": 0.009656701338903471, "se": 0.000680365037706493}, {"b": ">.45", "n": 3335, "delta": 0.02107640560672045, "se": 0.0010298166953041203}], "stale_curve": [{"b": "0", "n": 37470, "delta": -0.0006136907727239997, "se": 0.0002854786231158414}, {"b": "<.05", "n": 17154, "delta": -0.0005985992206917358, "se": 0.0004172496909468617}, {"b": ".05-.1", "n": 15237, "delta": -0.0004554295048289933, "se": 0.0004390063403993105}, {"b": ".1-.2", "n": 21331, "delta": -0.00031572517604232014, "se": 0.00037663746876472634}, {"b": ".2-.3", "n": 13798, "delta": 0.0010249140087015142, "se": 0.00047354936434588054}, {"b": ">.3", "n": 11458, "delta": 0.0027083998634072817, "se": 0.0005277941953114881}], "rank_effect": [{"healthy_rank": 1, "star_out": false, "n": 7735, "delta": -0.0029989267501872576}, {"healthy_rank": 1, "star_out": true, "n": 4073, "delta": 0.009756486190515166}, {"healthy_rank": 2, "star_out": false, "n": 7798, "delta": -0.0020654052524660374}, {"healthy_rank": 2, "star_out": true, "n": 4082, "delta": 0.009410640209047859}, {"healthy_rank": 3, "star_out": false, "n": 7708, "delta": -0.002623962838032637}, {"healthy_rank": 3, "star_out": true, "n": 4051, "delta": 0.0077719733124880005}, {"healthy_rank": 4, "star_out": false, "n": 7677, "delta": -0.0028195847832424618}, {"healthy_rank": 4, "star_out": true, "n": 4043, "delta": 0.005218513087484151}, {"healthy_rank": 5, "star_out": false, "n": 7566, "delta": -0.0024140652207662525}, {"healthy_rank": 5, "star_out": true, "n": 3991, "delta": 0.004435415001213048}, {"healthy_rank": 6, "star_out": false, "n": 7382, "delta": -0.0017649659403181487}, {"healthy_rank": 6, "star_out": true, "n": 3871, "delta": 0.003067849044379655}, {"healthy_rank": 7, "star_out": false, "n": 6894, "delta": -0.0023054297272530537}, {"healthy_rank": 7, "star_out": true, "n": 3629, "delta": 0.0026882992822370093}, {"healthy_rank": 8, "star_out": false, "n": 6100, "delta": -0.002658708170699971}, {"healthy_rank": 8, "star_out": true, "n": 3192, "delta": 0.004576193957115016}, {"healthy_rank": 9, "star_out": false, "n": 5046, "delta": -0.003366655656845906}, {"healthy_rank": 9, "star_out": true, "n": 2716, "delta": 0.0024762739030320005}, {"healthy_rank": 10, "star_out": false, "n": 4003, "delta": -0.0009489999563819178}, {"healthy_rank": 10, "star_out": true, "n": 2062, "delta": -0.00032284998383446474}], "return_gap": [{"g": "0", "n": 359022, "delta": -0.00025843675141099816, "se": 9.138494479948141e-05}, {"g": "1-2", "n": 18404, "delta": 0.0013803038849387465, "se": 0.0004465099461197391}, {"g": "3-6", "n": 5571, "delta": 0.0021680422710578873, "se": 0.0008684821313586462}, {"g": "7-15", "n": 2371, "delta": 0.0006853723564499604, "se": 0.0013797283866499963}, {"g": "16+", "n": 1648, "delta": -0.00015171034635537106, "se": 0.0017524252564533928}]}, "segments": {"vacated usage by fresh Out teammates": [{"seg": "none", "n": 30578, "gbm": 0.041060312066204016, "ewma": 0.041875298068213766, "delta": -0.0030287741843632397}, {"seg": "<0.05", "n": 13196, "gbm": 0.04124889275649143, "ewma": 0.042164062177558914, "delta": -0.0041057214760697874}, {"seg": "0.05-0.15", "n": 20362, "gbm": 0.04066873974189681, "ewma": 0.04162112731781662, "delta": -0.0028011055371559524}, {"seg": "0.15-0.30", "n": 19017, "gbm": 0.041349234018373586, "ewma": 0.042641911755502734, "delta": 0.003624884680870633}, {"seg": ">0.30", "n": 9716, "gbm": 0.04161902913155047, "ewma": 0.045503538796948476, "delta": 0.01356261279961371}], "minutes tier (last 10)": [{"seg": "<15", "n": 14129, "gbm": 0.04691386775885179, "ewma": 0.05045100239267263, "delta": -0.0009825413303088922}, {"seg": "15-22", "n": 21105, "gbm": 0.042689687869355605, "ewma": 0.04374053398587376, "delta": -0.00029130189145753615}, {"seg": "22-28", "n": 22405, "gbm": 0.03972830232209754, "ewma": 0.04050157181447021, "delta": 0.0003957299114281275}, {"seg": "28-33", "n": 20854, "gbm": 0.03847549530970202, "ewma": 0.03935132735825463, "delta": 0.0005377776613217929}, {"seg": "33+", "n": 14376, "gbm": 0.039119078144575575, "ewma": 0.03988218991831202, "delta": -0.00022058860306678439}], "games of history": [{"seg": "<5", "n": 876, "gbm": 0.046490903705839, "ewma": 0.06770995970319632, "delta": -0.004015380936073061}, {"seg": "5-20", "n": 2903, "gbm": 0.04426582754844632, "ewma": 0.05128585930381845, "delta": -0.0004720548932693096}, {"seg": "20-60", "n": 7411, "gbm": 0.04324051999871842, "ewma": 0.04462248525368624, "delta": 0.0009248542082685144}, {"seg": "60-150", "n": 15169, "gbm": 0.041437275880335654, "ewma": 0.04240226938332041, "delta": 0.0009387813787793125}, {"seg": "150+", "n": 66510, "gbm": 0.04060173056097325, "ewma": 0.041426684789147517, "delta": -0.0002905865408976455}], "days since last game": [{"seg": "1", "n": 13496, "gbm": 0.04082478866119065, "ewma": 0.04217791170230027, "delta": 0.002482287593568038}, {"seg": "2-3", "n": 66952, "gbm": 0.04076902917030022, "ewma": 0.04192312704346677, "delta": -0.00027956878855617533}, {"seg": "4-7", "n": 7318, "gbm": 0.04221472258445217, "ewma": 0.04388369330034115, "delta": -0.0015411907682812381}, {"seg": "8-14", "n": 2779, "gbm": 0.04308435146635763, "ewma": 0.044902903974092225, "delta": -0.00029976863194594236}, {"seg": "15+", "n": 2324, "gbm": 0.047104224952542434, "ewma": 0.04964995964350597, "delta": -0.00249228200473458}], "usage level (EWMA)": [{"seg": "<.12", "n": 8982, "gbm": 0.03882512696082217, "ewma": 0.04071263413207404, "delta": 0.011540958617290833}, {"seg": ".12-.17", "n": 32557, "gbm": 0.04007648820910166, "ewma": 0.04078942984998625, "delta": 0.0019464238726227814}, {"seg": ".17-.22", "n": 26840, "gbm": 0.042282479432475636, "ewma": 0.043420073614199056, "delta": -0.0025362848555939414}, {"seg": ".22-.27", "n": 15579, "gbm": 0.04168145971414841, "ewma": 0.04327415352826805, "delta": -0.0027653639428440934}, {"seg": ".27+", "n": 8911, "gbm": 0.0427509408965227, "ewma": 0.04535491875811381, "delta": -0.0066205153798516774}]}, "calibration": [{"d": "0", "pred": 0.11237106365916462, "actual": 0.11264606439108414, "n": 9287}, {"d": "1", "pred": 0.13343607059602808, "actual": 0.13331366426187113, "n": 9287}, {"d": "2", "pred": 0.14638752277221692, "actual": 0.14582943900075326, "n": 9287}, {"d": "3", "pred": 0.1580089181467747, "actual": 0.15734198341768002, "n": 9287}, {"d": "4", "pred": 0.16972665941323734, "actual": 0.16907268224399655, "n": 9287}, {"d": "5", "pred": 0.1834735607759021, "actual": 0.1820221839328015, "n": 9286}, {"d": "6", "pred": 0.2004085194704128, "actual": 0.19909981694842174, "n": 9287}, {"d": "7", "pred": 0.221915768162362, "actual": 0.2212978356842892, "n": 9287}, {"d": "8", "pred": 0.25096300933009436, "actual": 0.2500810810810806, "n": 9287}, {"d": "9", "pred": 0.2975030562743629, "actual": 0.29639463766555363, "n": 9287}], "residual": {"edges": [-0.2, -0.19, -0.18000000000000002, -0.17, -0.16, -0.15000000000000002, -0.14, -0.13, -0.12000000000000001, -0.11000000000000001, -0.1, -0.09000000000000001, -0.08000000000000002, -0.07, -0.06, -0.05000000000000002, -0.04000000000000001, -0.03, -0.020000000000000018, -0.010000000000000009, 0.0, 0.009999999999999981, 0.01999999999999999, 0.03, 0.03999999999999998, 0.04999999999999999, 0.06, 0.07, 0.08000000000000002, 0.08999999999999997, 0.09999999999999998, 0.10999999999999999, 0.12, 0.13, 0.14, 0.15000000000000002, 0.15999999999999998, 0.16999999999999998, 0.18, 0.19, 0.2], "counts": [28, 61, 74, 109, 165, 214, 331, 465, 639, 961, 1257, 1700, 2263, 2812, 3627, 4315, 5234, 6069, 6801, 7240, 7355, 7291, 6788, 6306, 5194, 4400, 3411, 2549, 1795, 1258, 786, 490, 339, 194, 119, 57, 36, 20, 19, 7], "sd": 0.052300848229103594, "p10": -0.06637019419527236, "p90": 0.06497985967865215}, "processing": {"windows": [{"name": "3", "cv": 0.04692547670582343, "holdout": 0.04754785904874846, "w": 3}, {"name": "5", "cv": 0.04460340017792647, "holdout": 0.045392690553837906, "w": 5}, {"name": "8", "cv": 0.043409879426476096, "holdout": 0.04401017382938945, "w": 8}, {"name": "10", "cv": 0.043065858427252635, "holdout": 0.04359203986170019, "w": 10}, {"name": "15", "cv": 0.042681410519816144, "holdout": 0.04322640870816298, "w": 15}, {"name": "20", "cv": 0.042549310529669454, "holdout": 0.04315289159439823, "w": 20}, {"name": "30", "cv": 0.04256263685567782, "holdout": 0.043264174704864836, "w": 30}, {"name": "40", "cv": 0.042699289500835604, "holdout": 0.043446903574039054, "w": 40}, {"name": "60", "cv": 0.0430283362377711, "holdout": 0.04383403431605529, "w": 60}], "alphas": [{"name": "0.02", "cv": 0.0451473663665074, "holdout": 0.04572113647876544, "alpha": 0.02}, {"name": "0.04", "cv": 0.04321673609806375, "holdout": 0.04372766661930493, "alpha": 0.04}, {"name": "0.07", "cv": 0.042436603136047434, "holdout": 0.042940867455395215, "alpha": 0.07}, {"name": "0.1", "cv": 0.04227403132597845, "holdout": 0.04276321141186583, "alpha": 0.1}, {"name": "0.15", "cv": 0.04242772589619032, "holdout": 0.042928868649049115, "alpha": 0.15}, {"name": "0.2", "cv": 0.04278747304036241, "holdout": 0.043322951196362564, "alpha": 0.2}, {"name": "0.3", "cv": 0.04381440806095902, "holdout": 0.04440024547677347, "alpha": 0.3}, {"name": "0.5", "cv": 0.04657154558965535, "holdout": 0.04715473540096927, "alpha": 0.5}], "history": [{"name": "all played games (EWMA 0.1)", "cv": 0.04227403132597845, "holdout": 0.04276321141186583}, {"name": "ignore games under 5 min", "cv": 0.04201221130227619, "holdout": 0.042550168463675216}, {"name": "ignore games under 10 min", "cv": 0.04200656009095782, "holdout": 0.04260221122179728}, {"name": "ignore games under 20 min", "cv": 0.042766629742365024, "holdout": 0.04337344114854533}, {"name": "winsorise usage at 1st/99th pct", "cv": 0.042141684787429745, "holdout": 0.04267755335551054}, {"name": "minutes-weighted EWMA 0.1", "cv": 0.041849107579871814, "holdout": 0.042358086830881096}, {"name": "EWMA 0.1, need 10 games else season/career", "cv": 0.04227403132597845, "holdout": 0.04276321141186583}]}, "processedFeat": {"full": {"val 2022-23": 0.04112457360702537, "val 2023-24": 0.04109235946751799, "val 2024-25": 0.0410518388157658, "holdout 2025-26": 0.04117935922734507}, "full + processed": {"val 2022-23": 0.041143339402705405, "val 2023-24": 0.04105010069664544, "val 2024-25": 0.04098109717528957, "holdout 2025-26": 0.04118084902409461}, "paired": {"pooled": [-2.2684881041989478e-05, -4.376063369681741e-05, 1.5566988434493165e-06], "holdout": [1.4897967495407582e-06, -4.2141585031910125e-05, 4.2780219133455997e-05]}}, "statyx": {"train_rows": 42257, "test_rows": 46508, "test_coverage": 0.9515567214242711, "base features": 0.04150956344504762, "base + statyx tracking": 0.041498477067867544, "paired": [-1.1086377180083221e-05, -6.927745122418888e-05, 4.2946888510141734e-05]}};
+const K = DATA.K;
+const f = (x, d) => x.toFixed(d);
+const f4 = x => f(x, 4), f5 = x => f(x, 5), f3 = x => f(x, 3);
+const NS = 'http://www.w3.org/2000/svg';
+const FN = DATA.foldNames;
+const FAMCOL = {Linear: 'var(--s1)', Forest: 'var(--s2)', Boosting: 'var(--s3)', Neural: 'var(--s4)', Baseline: 'var(--base)', Other: 'var(--s5)'};
+const SERIES = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)'];
+
+/* ---------- narrative tokens ---------- */
+(function tokens() {
+  const seg = DATA.segments['vacated usage by fresh Out teammates'];
+  const last = seg[seg.length - 1];
+  const loo = DATA.ablation.loo.core.vs_full.pooled[0];
+  const others = ['minutes', 'rates', 'context', 'own_injury', 'team_injury', 'hierarchy', 'pairwise', 'roles'];
+  const nextName = others.reduce((a, g) => DATA.ablation.loo[g].vs_full.pooled[0] > DATA.ablation.loo[a].vs_full.pooled[0] ? g : a, others[0]);
+  const next = DATA.ablation.loo[nextName].vs_full.pooled[0];
+  const rg = DATA.inj.return_gap, rgf = n => rg.find(r => r.g === n);
+  const ens = DATA.paired.find(p => p.a.startsWith('Ensemble'));
+  const T = {
+    best_hold: f4(K.best_hold), best_pts: f(K.best_hold * 100, 1), mw_hold: f4(K.mw_hold), season_hold: f4(K.season_hold),
+    gain_pct: f(K.gain_pct, 1), gain_hold: f4(K.gain_hold), gain_lo: f4(K.gain_lo), gain_hi: f4(K.gain_hi),
+    best_r2: f(K.best_r2, 3), mw_r2: f(K.mw_r2, 3), noise_sd: f3(K.noise_sd), resid_sd: f3(K.resid_sd),
+    loo_core: f4(loo), loo_core_x: f(loo / next, 0), loo_next: f5(next), loo_next_name: nextName,
+    return_note: 'Missed games barely change usage on return: compared with the last-10 average, a player back after 3 to 6 missed team games uses ' + f(rgf('3-6').delta * 100, 2) + ' points more, and after 16 or more ' + f(rgf('16+').delta * 100, 2) + ' points (not distinguishable from zero).',
+    inj_gain: f5(K.inj_gain), inj_lo: f5(K.inj_lo), inj_hi: f5(K.inj_hi), inj_pct: f(K.inj_gain / K.best_hold * 100, 1),
+    own_loo: (K.own_loo[0] >= 0 ? '+' : '') + f5(K.own_loo[0]),
+    seg_gt30_model: f4(last.gbm), seg_gt30_base: f4(last.ewma),
+    top5_hold: f4(K.top5_hold), top12_hold: f4(K.top12_hold), all_hold: f4(K.all_hold), n_feats: K.n_feats,
+    ens_gain: f5(-ens.pooled[0]), seed_sd: f5(K.seed_sd),
+    sx_train: K.statyx.train_rows.toLocaleString(), sx_cov: f(K.statyx.test_coverage * 100, 0),
+    sx_base: f4(K.statyx['base features']), sx_with: f4(K.statyx['base + statyx tracking']),
+    sx_diff: f5(K.statyx.paired[0]), sx_lo: f5(K.statyx.paired[1]), sx_hi: f5(K.statyx.paired[2]),
+    pr_diff: f5(K.processed.pooled[0]), pr_lo: f5(K.processed.pooled[1]), pr_hi: f5(K.processed.pooled[2]),
+    rows: K.rows.toLocaleString(), rows_inj: K.rows_inj.toLocaleString(),
+  };
+  document.body.innerHTML = document.body.innerHTML.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in T ? T[k] : m));
+})();
+
+/* ---------- helpers ---------- */
+function el(tag, attrs, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function h(tag, attrs, parent, text) {
+  const e = document.createElement(tag);
+  for (const k in (attrs || {})) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+const tip = document.getElementById('tip');
+function showTip(ev, title, rows) {
+  tip.replaceChildren();
+  if (title) h('div', {class: 't'}, tip, title);
+  for (const r of rows) {
+    const d = h('div', {class: 'r'}, tip);
+    const l = h('span', {}, d);
+    if (r.color) { const k = h('i', {class: 'k'}, l); k.style.borderColor = r.color; }
+    l.appendChild(document.createTextNode(r.k));
+    h('b', {}, d, r.v);
+  }
+  tip.style.display = 'block';
+  const w = tip.offsetWidth, hh = tip.offsetHeight;
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+  if (y + hh > innerHeight - 8) y = ev.clientY - hh - 14;
+  tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+}
+const hideTip = () => { tip.style.display = 'none'; };
+function ticks(lo, hi, n) {
+  const span = hi - lo, raw = span / n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const out = [];
+  for (let v = Math.ceil(lo / step - 1e-9) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+function seg(parent, options, initial, onchange) {
+  const wrap = h('div', {class: 'seg', role: 'group'}, parent);
+  const btns = options.map(o => {
+    const b = h('button', {type: 'button', 'aria-pressed': String(o.id === initial)}, wrap, o.label);
+    b.onclick = () => { btns.forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onchange(o.id); };
+    return b;
+  });
+  return wrap;
+}
+/* card with title, optional controls, chart body and a table toggle */
+function card(host, title, sub) {
+  host.replaceChildren();
+  const head = h('div', {class: 'head'}, host);
+  const t = h('div', {}, head); h('h3', {}, t, title); if (sub) h('div', {class: 'sub'}, t, sub);
+  const ctl = h('div', {class: 'ctl'}, head);
+  const tb = h('button', {class: 'tbtn', type: 'button'}, ctl, 'Table');
+  const body = h('div', {class: 'body'}, host);
+  const legend = h('div', {class: 'legend'}, host);
+  const table = h('div', {class: 'tablewrap'}, host); table.style.display = 'none';
+  const noteEl = h('div', {class: 'note'}, host);
+  let showing = false;
+  tb.onclick = () => { showing = !showing; table.style.display = showing ? 'block' : 'none'; body.style.display = showing ? 'none' : 'block'; legend.style.display = showing ? 'none' : 'flex'; tb.textContent = showing ? 'Chart' : 'Table'; };
+  return {body, legend, ctl, noteEl, setTable(head_, rows) {
+    table.replaceChildren(); const t = h('table', {}, table); const tr = h('tr', {}, h('thead', {}, t));
+    head_.forEach(x => h('th', {}, tr, x));
+    const tbd = h('tbody', {}, t);
+    rows.forEach(r => { const row = h('tr', {}, tbd); r.forEach(c => h('td', {}, row, String(c))); });
+  }};
+}
+function legendItems(legend, items) {
+  legend.replaceChildren();
+  items.forEach(it => {
+    const s = h('span', {}, legend);
+    const i = h('i', {class: it.dot ? 'dot' : ''}, s);
+    if (it.dot) i.style.background = it.color; else i.style.borderColor = it.color;
+    s.appendChild(document.createTextNode(it.label));
+    if (it.onclick) { s.style.cursor = 'pointer'; s.onclick = () => it.onclick(s); }
+  });
+}
+function mkSvg(host, W, H) {
+  host.replaceChildren();
+  const s = el('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img'}, host);
+  s.style.minWidth = Math.min(W, 600) + 'px';
+  return s;
+}
+
+/* dot plot: horizontal rows, one or two dots per row; axis need not start at zero */
+function dotPlot(host, rows, o) {
+  const W = o.W || 720, L = o.left || 190, R = o.R || 70, T = 8, rowH = o.rowH || 30, B = 40;
+  const H = T + rows.length * rowH + B;
+  const svg = mkSvg(host, W, H);
+  const lo = o.min, hi = o.max, x = v => L + (v - lo) / (hi - lo) * (W - L - R);
+  ticks(lo, hi, 6).forEach(t => {
+    el('line', {x1: x(t), x2: x(t), y1: T, y2: H - B, stroke: 'var(--grid)', 'stroke-width': 1}, svg);
+    el('text', {x: x(t), y: H - B + 16, 'text-anchor': 'middle'}, svg, (o.fmt || f4)(t));
+  });
+  if (o.xlabel) el('text', {x: L + (W - L - R) / 2, y: H - 6, 'text-anchor': 'middle'}, svg, o.xlabel);
+  if (o.zero != null) el('line', {x1: x(o.zero), x2: x(o.zero), y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1.5}, svg);
+  rows.forEach((r, i) => {
+    const y = T + i * rowH + rowH / 2;
+    el('text', {x: L - 10, y: y + 4, 'text-anchor': 'end', class: 'ink2'}, svg, r.label);
+    const vals = r.dots.map(d => d.v);
+    if (r.lo != null) el('line', {x1: x(r.lo), x2: x(r.hi), y1: y, y2: y, stroke: r.dots[0].color, 'stroke-width': 2, 'stroke-linecap': 'round'}, svg);
+    else if (r.dots.length > 1) el('line', {x1: x(Math.min(...vals)), x2: x(Math.max(...vals)), y1: y, y2: y, stroke: 'var(--axis)', 'stroke-width': 2}, svg);
+    else el('line', {x1: L, x2: x(vals[0]), y1: y, y2: y, stroke: 'var(--axis)', 'stroke-width': 1}, svg);
+    r.dots.forEach(d => {
+      el('circle', {cx: x(d.v), cy: y, r: 6, fill: d.color, stroke: 'var(--surface)', 'stroke-width': 2}, svg);
+    });
+    if (o.valueLabel !== false) {
+      const last = r.dots.length > 1 ? r.dots.reduce((a, b) => (b.v > a.v ? b : a)) : r.dots[0];
+      const xr = r.hi != null ? Math.max(x(r.hi), x(last.v)) : x(last.v);
+      el('text', {x: xr + 10, y: y + 4, class: 'ink'}, svg, r.labelText != null ? r.labelText : (o.labelFmt || o.fmt || f4)(r.label2 != null ? r.label2 : last.v));
+    }
+    const hit = el('rect', {x: 0, y: y - rowH / 2, width: W, height: rowH, fill: 'transparent', tabindex: 0}, svg);
+    const tipf = ev => showTip(ev, r.label, r.tip || r.dots.map(d => ({k: d.name || '', v: (o.fmt || f4)(d.v), color: d.color})));
+    hit.addEventListener('pointermove', tipf); hit.addEventListener('pointerleave', hideTip);
+    hit.addEventListener('focus', () => { const b = hit.getBoundingClientRect(); tipf({clientX: b.left + 80, clientY: b.top}); });
+    hit.addEventListener('blur', hideTip);
+  });
+}
+
+/* line chart with crosshair; points by category index or numeric x */
+function lineChart(host, series, o) {
+  const W = o.W || 720, H = o.height || 320, L = o.L || 58, R = o.R || 44, T = 12, B = 44;
+  const svg = mkSvg(host, W, H);
+  const xs = o.xs;
+  const xmin = o.xnum ? Math.min(...xs) : 0, xmax = o.xnum ? Math.max(...xs) : xs.length - 1;
+  const xp = i => L + ((o.xnum ? xs[i] : i) - xmin) / (xmax - xmin || 1) * (W - L - R);
+  const all = series.flatMap(s => s.ys.filter(v => v != null));
+  let lo = o.min != null ? o.min : Math.min(...all), hi = o.max != null ? o.max : Math.max(...all);
+  const pad = (hi - lo) * 0.08; if (o.min == null) lo -= pad; if (o.max == null) hi += pad;
+  const y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  ticks(lo, hi, 5).forEach(t => {
+    el('line', {x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: 'var(--grid)', 'stroke-width': 1}, svg);
+    el('text', {x: L - 8, y: y(t) + 4, 'text-anchor': 'end'}, svg, (o.yfmt || f4)(t));
+  });
+  el('line', {x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1}, svg);
+  xs.forEach((v, i) => el('text', {x: xp(i), y: H - B + 18, 'text-anchor': 'middle'}, svg, o.xlab ? o.xlab(v, i) : String(v)));
+  if (o.xtitle) el('text', {x: L + (W - L - R) / 2, y: H - 6, 'text-anchor': 'middle'}, svg, o.xtitle);
+  if (o.ytitle) el('text', {x: 4, y: 10}, svg, o.ytitle);
+  const groups = series.map(s => {
+    const g = el('g', {}, svg);
+    const pts = s.ys.map((v, i) => v == null ? null : [xp(i), y(v)]);
+    let d = ''; pts.forEach(p => { if (p) d += (d ? 'L' : 'M') + p[0] + ' ' + p[1]; });
+    el('path', {d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', 'stroke-dasharray': s.dash || ''}, g);
+    if (!s.noDots) pts.forEach(p => { if (p) el('circle', {cx: p[0], cy: p[1], r: 4, fill: s.color, stroke: 'var(--surface)', 'stroke-width': 2}, g); });
+    return g;
+  });
+  const cross = el('line', {y1: T, y2: H - B, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden'}, svg);
+  const hit = el('rect', {x: L, y: T, width: W - L - R, height: H - T - B, fill: 'transparent', tabindex: 0}, svg);
+  const move = ev => {
+    const b = svg.getBoundingClientRect(), px = (ev.clientX - b.left) / b.width * W;
+    let best = 0, bd = 1e9; xs.forEach((_, i) => { const d = Math.abs(xp(i) - px); if (d < bd) { bd = d; best = i; } });
+    cross.setAttribute('x1', xp(best)); cross.setAttribute('x2', xp(best)); cross.setAttribute('visibility', 'visible');
+    const rows = series.map((s, si) => ({s, v: s.ys[best], si})).filter(r => r.v != null && !series[r.si].hidden)
+      .sort((a, b) => a.v - b.v).map(r => ({k: r.s.name, v: (o.yfmt || f4)(r.v), color: r.s.color}));
+    showTip(ev, o.xlab ? o.xlab(xs[best], best) : String(xs[best]), rows);
+  };
+  hit.addEventListener('pointermove', move);
+  hit.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+  hit.addEventListener('focus', () => { const b = hit.getBoundingClientRect(); move({clientX: b.left + b.width / 2, clientY: b.top + 20}); });
+  hit.addEventListener('blur', () => { cross.setAttribute('visibility', 'hidden'); hideTip(); });
+  return groups;
+}
+function lineWithLegend(c, series, o, tableHead, tableRows) {
+  const draw = () => lineChart(c.body, series.filter(s => !s.hidden), o);
+  draw();
+  legendItems(c.legend, series.map(s => ({label: s.name, color: s.color, onclick: node => { s.hidden = !s.hidden; node.classList.toggle('off', !!s.hidden); draw(); }})));
+  c.setTable(tableHead, tableRows);
+}
+
+/* ---------- sections ---------- */
+
+/* folds timeline */
+(function foldsViz() {
+  const host = document.getElementById('foldsViz');
+  const seasons = ['2013-14', '2014-15', '2015-16', '2016-17', '2017-18', '2018-19', '2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25', '2025-26'];
+  const W = 720, L = 130, R = 10, rowH = 34, H = 20 + 4 * rowH + 36;
+  const svg = mkSvg(host, W, H);
+  const bw = (W - L - R) / seasons.length;
+  seasons.forEach((s, i) => { if (i % 2 === 0 || i === seasons.length - 1) el('text', {x: L + i * bw + bw / 2, y: H - 14, 'text-anchor': 'middle'}, svg, s.slice(2)); });
+  el('text', {x: L, y: H - 0}, svg, 'season (start year)');
+  const fold = [['val 2022-23', 9], ['val 2023-24', 10], ['val 2024-25', 11], ['holdout 2025-26', 12]];
+  fold.forEach(([name, idx], r) => {
+    const y = 8 + r * rowH;
+    el('text', {x: L - 10, y: y + 18, 'text-anchor': 'end', class: 'ink2'}, svg, name);
+    seasons.forEach((s, i) => {
+      if (i > idx) return;
+      const train = i < idx;
+      const rect = el('rect', {x: L + i * bw + 1, y, width: bw - 2, height: 24, rx: 4,
+        fill: train ? 'var(--s1)' : (name.startsWith('holdout') ? 'var(--s2)' : 'var(--s3)'), opacity: train ? 0.55 : 1}, svg);
+      rect.addEventListener('pointermove', ev => showTip(ev, s, [{k: train ? 'train' : name.startsWith('holdout') ? 'holdout test' : 'validation', v: ''}]));
+      rect.addEventListener('pointerleave', hideTip);
+    });
+  });
+  const lg = h('div', {class: 'legend'}, host);
+  [['Train', 'var(--s1)'], ['Validation (tuning)', 'var(--s3)'], ['Holdout (never used to choose)', 'var(--s2)']].forEach(([t, c]) => {
+    const s = h('span', {}, lg); const i = h('i', {class: 'dot'}, s); i.style.background = c; s.appendChild(document.createTextNode(t));
+  });
+  const nt = h('div', {class: 'note'}, host);
+  nt.textContent = DATA.folds.map(x => `${x.name}: ${x.train.toLocaleString()} train / ${x.val.toLocaleString()} test rows`).join(' · ');
+})();
+
+/* group table */
+(function groupTable() {
+  const desc = {
+    core: 'Recent usage: last 1/3/5/10/20 games, minutes-weighted last 5/10, EWMA (0.1, 0.3), season and career means, volatility, games of history.',
+    minutes: 'Recent minutes (last 5/10, EWMA), starter rate, minutes last game, season minutes.',
+    rates: 'Per-36 shot attempts, free throws, turnovers, threes, points; assist, rebound and true-shooting percentages (last 10).',
+    context: 'Home or away, rest days, team games missed, playoffs, team and opponent pace and ratings (last 10).',
+    own_injury: "The player's own report status on the day (none, Available, Probable, Questionable, Doubtful, Out).",
+    team_injury: 'Usage and minutes vacated by teammates reported Out (fresh vs stale), Doubtful or Questionable; count and largest single absence.',
+    hierarchy: 'Rank among healthy rotation players, healthy-rotation load, absorption share, and absorption-weighted vacated usage and minutes.',
+    pairwise: "Shrunk with/without usage effect of each currently-out teammate on this player, from prior games only.",
+    roles: 'Role cluster (k-means on rate stats, usage excluded), PCA role scores, vacated usage by absent teammates\' role, same-role vs other-role.',
+  };
+  const t = document.getElementById('groupTable');
+  const hd = h('tr', {}, h('thead', {}, t)); ['Group', 'Features', 'What it contains'].forEach(x => h('th', {}, hd, x));
+  const tb = h('tbody', {}, t);
+  DATA.ablation.order.forEach(g => { const r = h('tr', {}, tb); h('td', {}, r, g); h('td', {}, r, DATA.groups[g]); const d = h('td', {}, r, desc[g]); d.style.textAlign = 'left'; });
+})();
+
+/* processing */
+(function processing() {
+  const P = DATA.processing;
+  let c = card(document.getElementById('cWindows'), 'Rolling window length', 'MAE of a plain average of the last N games (validation mean and holdout).');
+  lineWithLegend(c, [
+    {name: 'Validation mean (3 folds)', color: 'var(--s1)', ys: P.windows.map(r => r.cv)},
+    {name: 'Holdout 2025-26', color: 'var(--s2)', ys: P.windows.map(r => r.holdout)}],
+    {xs: P.windows.map(r => r.w), xlab: v => String(v), xtitle: 'games averaged', W: 480, height: 300, yfmt: f4}, ['Window', 'Validation MAE', 'Holdout MAE'], P.windows.map(r => [r.w, f4(r.cv), f4(r.holdout)]));
+  c.noteEl.textContent = 'Short windows are noisy, long ones are stale: the minimum is near 20 games.';
+  c = card(document.getElementById('cAlpha'), 'EWMA decay rate', 'Exponentially weighted average; a larger alpha forgets faster.');
+  lineWithLegend(c, [
+    {name: 'Validation mean (3 folds)', color: 'var(--s1)', ys: P.alphas.map(r => r.cv)},
+    {name: 'Holdout 2025-26', color: 'var(--s2)', ys: P.alphas.map(r => r.holdout)}],
+    {xs: P.alphas.map(r => r.alpha), xlab: v => String(v), xtitle: 'alpha', W: 480, height: 300}, ['Alpha', 'Validation MAE', 'Holdout MAE'], P.alphas.map(r => [r.alpha, f4(r.cv), f4(r.holdout)]));
+  c.noteEl.textContent = 'The best decay is about 0.1, equivalent to a window of roughly 20 games, and beats every plain window.';
+  c = card(document.getElementById('cHistory'), 'How to clean the history (EWMA, alpha 0.1)', 'Variants on how past games are used. Axis does not start at zero.');
+  const short = n => n.startsWith('EWMA 0.1, need') ? 'needs 10 games, else fallback' : n;
+  const rows = P.history.map(r => ({label: short(r.name), dots: [{v: r.cv, color: 'var(--s1)', name: 'Validation mean'}, {v: r.holdout, color: 'var(--s2)', name: 'Holdout'}], label2: r.holdout}));
+  const all = P.history.flatMap(r => [r.cv, r.holdout]);
+  dotPlot(c.body, rows, {min: Math.floor(Math.min(...all) * 1000 - 0.5) / 1000, max: Math.ceil(Math.max(...all) * 1000 + 0.5) / 1000, left: 250, xlabel: 'MAE'});
+  legendItems(c.legend, [{label: 'Validation mean (3 folds)', color: 'var(--s1)', dot: true}, {label: 'Holdout 2025-26', color: 'var(--s2)', dot: true}]);
+  c.setTable(['Variant', 'Validation MAE', 'Holdout MAE'], P.history.map(r => [r.name, f4(r.cv), f4(r.holdout)]));
+  c.noteEl.textContent = 'Weighting each game by minutes played is the biggest single improvement. Ignoring games under 5 or 10 minutes helps slightly; ignoring games under 20 minutes hurts.';
+})();
+
+/* model comparison */
+(function models() {
+  const M = DATA.models.filter(m => !['MLP (mse)', 'MLP (l1)'].includes(m.name));
+  const base = DATA.simple.filter(s => ['season mean', 'last 10', 'EWMA a=0.1', 'minutes-wtd EWMA a=0.1'].includes(s.name));
+  const ens = Object.entries(DATA.ensembles).map(([name, r]) => ({name, family: 'Other', mae: r.map(x => x.mae)}));
+  const items = [
+    ...base.map(b => ({name: b.name === 'minutes-wtd EWMA a=0.1' ? 'Baseline: minutes-weighted EWMA' : 'Baseline: ' + b.name, family: 'Baseline', mae: b.mae})),
+    ...M.map(m => ({name: m.name + ' · ' + m.config, family: m.family, mae: m.mae, rmse: m.rmse_h, r2: m.r2_h, sec: m.seconds})),
+    ...ens.map(e => ({name: e.name, family: 'Other', mae: e.mae}))];
+  const c = card(document.getElementById('cModels'), 'Model comparison', 'MAE on the 2025-26 holdout (usage points). Lower is better; axis does not start at zero.');
+  const metric = h('div', {}, c.ctl);
+  let which = 'holdout';
+  const draw = () => {
+    const val = it => which === 'holdout' ? it.mae[3] : it.mae.slice(0, 3).reduce((a, b) => a + b, 0) / 3;
+    const sorted = [...items].sort((a, b) => val(a) - val(b));
+    const vs = sorted.map(val);
+    dotPlot(c.body, sorted.map(it => ({label: it.name, dots: [{v: val(it), color: FAMCOL[it.family], name: which === 'holdout' ? 'Holdout MAE' : 'Validation mean MAE'}],
+      tip: [{k: 'Holdout MAE', v: f4(it.mae[3])}, {k: 'Validation mean', v: f4(it.mae.slice(0, 3).reduce((a, b) => a + b, 0) / 3)}].concat(it.r2 != null ? [{k: 'Holdout R²', v: f(it.r2, 3)}, {k: 'Holdout RMSE', v: f4(it.rmse)}] : [])})),
+      {min: Math.floor(Math.min(...vs) * 1000 - 0.3) / 1000, max: Math.ceil(Math.max(...vs) * 1000 + 0.3) / 1000, left: 270, rowH: 26, xlabel: 'mean absolute error'});
+  };
+  seg(metric, [{id: 'holdout', label: 'Holdout 2025-26'}, {id: 'val', label: 'Validation mean'}], 'holdout', v => { which = v; draw(); });
+  draw();
+  legendItems(c.legend, Object.entries(FAMCOL).filter(([k]) => k !== 'Other').map(([k, v]) => ({label: k, color: v, dot: true})).concat([{label: 'Ensemble', color: FAMCOL.Other, dot: true}]));
+  c.setTable(['Model', ...FN.map(n => n.replace('holdout ', 'hold ')), 'R² (holdout)'], items.map(it => [it.name, ...it.mae.map(f4), it.r2 != null ? f(it.r2, 3) : '']));
+  c.noteEl.textContent = 'Boosting, ridge, forests and the neural networks sit within about 0.0005 of each other; the simple averages are 0.0012 to 0.0024 behind.';
+
+  const c2 = card(document.getElementById('cFolds'), 'Consistency across folds', 'Each line is a model; hover for all values at a fold.');
+  const pick = ['Ridge', 'RandomForest', 'LightGBM', 'XGBoost', 'CatBoost', 'MLP (huber)', 'GRU (huber)'];
+  const series = [
+    {name: 'Baseline: minutes-weighted EWMA', color: 'var(--base)', dash: '5 4', ys: DATA.simple.find(s => s.name === 'minutes-wtd EWMA a=0.1').mae},
+    {name: 'Ridge', color: 'var(--s1)', ys: M.find(m => m.name === 'Ridge').mae},
+    {name: 'RandomForest', color: 'var(--s2)', ys: M.find(m => m.name === 'RandomForest').mae},
+    {name: 'LightGBM', color: 'var(--s3)', ys: M.find(m => m.name === 'LightGBM').mae},
+    {name: 'MLP (huber)', color: 'var(--s4)', ys: M.find(m => m.name === 'MLP (huber)').mae},
+    {name: 'GRU (huber)', color: 'var(--s5)', ys: M.find(m => m.name === 'GRU (huber)').mae}];
+  lineWithLegend(c2, series, {xs: FN, xlab: v => v.replace('holdout 2025-26', 'holdout').replace('val 20', 'val '), xtitle: ''}, ['Model', ...FN], series.map(s => [s.name, ...s.ys.map(f4)]));
+  c2.noteEl.textContent = 'The picture is consistent across folds: boosting first, forests and linear models close behind, neural nets near ridge, and the plain average clearly last.';
+
+  const c3 = card(document.getElementById('cPaired'), 'Is the difference real?', 'Paired change in absolute error with 95% confidence interval (negative = first model better). Pooled over all four folds.');
+  const pr = DATA.paired.map(p => ({label: `${p.a} vs ${p.b}`, lo: p.pooled[1], hi: p.pooled[2],
+    dots: [{v: p.pooled[0], color: p.pooled[2] < 0 ? 'var(--s1)' : (p.pooled[1] > 0 ? 'var(--s2)' : 'var(--muted)'), name: 'Mean change'}],
+    tip: [{k: 'Pooled change', v: f5(p.pooled[0])}, {k: '95% CI', v: `${f5(p.pooled[1])} to ${f5(p.pooled[2])}`}, {k: 'Holdout only', v: f5(p.holdout[0])}, {k: 'Holdout 95% CI', v: `${f5(p.holdout[1])} to ${f5(p.holdout[2])}`}]}));
+  dotPlot(c3.body, pr, {min: -0.0026, max: 0.0004, left: 300, rowH: 26, zero: 0, fmt: f4, xlabel: 'change in MAE (usage points)', valueLabel: false});
+  legendItems(c3.legend, [{label: 'first model clearly better', color: 'var(--s1)', dot: true}, {label: 'not distinguishable', color: 'var(--muted)', dot: true}, {label: 'first model clearly worse', color: 'var(--s2)', dot: true}]);
+  c3.setTable(['Comparison', 'Pooled change', 'CI low', 'CI high', 'Holdout change'], DATA.paired.map(p => [`${p.a} vs ${p.b}`, f5(p.pooled[0]), f5(p.pooled[1]), f5(p.pooled[2]), f5(p.holdout[0])]));
+
+  // model table
+  const t = document.getElementById('modelTable');
+  const hd = h('tr', {}, h('thead', {}, t)); ['Model', 'Config', ...FN.map(n => n.replace('holdout ', 'hold ')), 'RMSE hold', 'R² hold', 'Avg fit time per config (s, all 4 folds)'].forEach(x => h('th', {}, hd, x));
+  const tb = h('tbody', {}, t);
+  DATA.models.forEach(m => {
+    const r = h('tr', {}, tb); h('td', {}, r, m.name); h('td', {}, r, m.config);
+    m.mae.forEach(v => h('td', {}, r, f4(v))); h('td', {}, r, f4(m.rmse_h)); h('td', {}, r, f(m.r2_h, 3)); h('td', {}, r, m.seconds != null ? Math.round(m.seconds) : '');
+    if (m.grid) {
+      r.style.cursor = 'pointer'; r.title = 'Click to show tuning grid';
+      let open = false, rows = [];
+      r.onclick = () => {
+        open = !open;
+        if (open) {
+          let prev = r;
+          m.grid.forEach(g => {
+            const gr = h('tr', {}); gr.style.background = 'var(--wash)';
+            h('td', {}, gr, '    ' + g.config); h('td', {}, gr, '');
+            h('td', {colspan: 3}, gr, 'validation mean ' + f4(g.cv)); h('td', {}, gr, 'holdout ' + f4(g.holdout)); h('td', {colspan: 3}, gr, '');
+            prev.after(gr); prev = gr; rows.push(gr);
+          });
+        } else { rows.forEach(x => x.remove()); rows = []; }
+      };
+    }
+  });
+})();
+
+/* losses + curves */
+(function losses() {
+  const c = card(document.getElementById('cLoss'), 'Loss-function comparison', 'Holdout MAE, same features and folds. Axis does not start at zero.');
+  const rows = [];
+  Object.entries(DATA.losses.LightGBM).forEach(([n, r]) => rows.push({label: 'LightGBM · ' + n, dots: [{v: r[3].mae, color: 'var(--s3)', name: 'Holdout MAE'}, {v: r.slice(0, 3).reduce((a, x) => a + x.mae, 0) / 3, color: 'var(--s1)', name: 'Validation mean'}], label2: r[3].mae}));
+  Object.entries(DATA.losses.MLP).forEach(([n, r]) => rows.push({label: 'MLP · ' + ({mse: 'squared error', huber: 'Huber', l1: 'absolute error'}[n] || n), dots: [{v: r[3].mae, color: 'var(--s4)', name: 'Holdout MAE'}, {v: r.slice(0, 3).reduce((a, x) => a + x.mae, 0) / 3, color: 'var(--s1)', name: 'Validation mean'}], label2: r[3].mae}));
+  const vals = rows.flatMap(r => r.dots.map(d => d.v));
+  dotPlot(c.body, rows, {min: Math.floor(Math.min(...vals) * 10000 - 3) / 10000, max: Math.ceil(Math.max(...vals) * 10000 + 3) / 10000, left: 250, xlabel: 'MAE'});
+  legendItems(c.legend, [{label: 'LightGBM holdout', color: 'var(--s3)', dot: true}, {label: 'MLP holdout', color: 'var(--s4)', dot: true}, {label: 'Validation mean', color: 'var(--s1)', dot: true}]);
+  c.setTable(['Model · loss', ...FN.map(n => n.replace('holdout ', 'hold '))], [
+    ...Object.entries(DATA.losses.LightGBM).map(([n, r]) => ['LightGBM · ' + n, ...r.map(x => f4(x.mae))]),
+    ...Object.entries(DATA.losses.MLP).map(([n, r]) => ['MLP · ' + n, ...r.map(x => f4(x.mae))])]);
+  c.noteEl.textContent = 'Every loss lands within 0.0001 MAE of the others for LightGBM and for the MLP. Usage noise is roughly symmetric and mild, so robust losses give no edge.';
+
+  const c2 = card(document.getElementById('cCurve'), 'Neural network learning curves', 'Validation MAE after each epoch, one line per fold.');
+  const sel = h('div', {}, c2.ctl);
+  const names = [['MLP (huber)', 'MLP · Huber'], ['MLP (mse)', 'MLP · squared error'], ['MLP (l1)', 'MLP · absolute error'], ['GRU (huber)', 'GRU · Huber']];
+  const draw = id => {
+    const cur = DATA.curves[id];
+    const series = cur.map((fold, i) => ({name: FN[i], color: SERIES[i], ys: fold.map(e => e.val_mae)}));
+    const col = series.flatMap(s => s.ys);
+    lineWithLegend(c2, series, {xs: cur[0].map(e => e.epoch), xnum: true, xlab: v => String(v), xtitle: 'epoch', min: Math.floor(Math.min(...col) * 10000 - 2) / 10000, max: Math.ceil(Math.max(...col) * 10000 + 2) / 10000},
+      ['Epoch', ...FN], cur[0].map((e, i) => [e.epoch, ...cur.map(fold => f4(fold[i].val_mae))]));
+  };
+  seg(sel, names.map(([id, label]) => ({id, label})), 'MLP (huber)', draw);
+  draw('MLP (huber)');
+  c2.noteEl.textContent = 'The networks are still improving slowly at epoch 12; learning-rate decay flattens the curve. The GRU sees the same engineered features plus the raw last-20-game sequence and gains nothing from it.';
+})();
+
+/* injury */
+(function injury() {
+  const I = DATA.inj;
+  const c = card(document.getElementById('cDose'), 'More vacated usage, more usage for those left', "Actual usage minus the player's last-10 average, by usage vacated by teammates reported Out.");
+  const sel = h('div', {}, c.ctl);
+  const draw = id => {
+    const arr = id === 'fresh' ? I.vacated_curve : I.stale_curve;
+    const rows = arr.map(r => ({label: (r.b === '0' ? 'none' : r.b) + '  (n=' + r.n.toLocaleString() + ')', lo: (r.delta - 1.96 * r.se) * 100, hi: (r.delta + 1.96 * r.se) * 100,
+      dots: [{v: r.delta * 100, color: id === 'fresh' ? 'var(--s1)' : 'var(--s2)', name: 'Mean change'}], label2: r.delta * 100,
+      tip: [{k: 'Mean change', v: f(r.delta * 100, 2) + ' pts'}, {k: '95% CI', v: `${f((r.delta - 1.96 * r.se) * 100, 2)} to ${f((r.delta + 1.96 * r.se) * 100, 2)}`}, {k: 'Player-games', v: r.n.toLocaleString()}]}));
+    dotPlot(c.body, rows, {min: -1, max: 3.2, left: 190, zero: 0, fmt: x => f(x, 1), labelFmt: x => f(x, 2), xlabel: 'change in usage (percentage points)', rowH: 34});
+  };
+  seg(sel, [{id: 'fresh', label: 'Fresh absences'}, {id: 'stale', label: 'Stale absences'}], 'fresh', draw);
+  draw('fresh');
+  legendItems(c.legend, []);
+  c.setTable(['Absence type · vacated usage', 'Player-games', 'Mean change, pts'], [...I.vacated_curve.map(r => ['Fresh · ' + r.b, r.n, f(r.delta * 100, 2)]), ...I.stale_curve.map(r => ['Stale · ' + r.b, r.n, f(r.delta * 100, 2)])]);
+  c.noteEl.textContent = 'Fresh absences (the teammate played in the last 14 days) move usage a lot; stale ones (out for weeks) barely do, because the remaining players\' recent averages already reflect them. Rows: the share of team possessions normally used by the teammates who are out. Injury-report era only.';
+
+  const c2 = card(document.getElementById('cAbl'), 'Which feature groups earn their place?', 'Change in MAE with 95% CI (game-level bootstrap, pooled over four folds). In the Add view a negative change means the group helps; in the Remove view a positive change means the group was helping.');
+  const sel2 = h('div', {}, c2.ctl);
+  const f5z = x => (Math.abs(x) < 5e-6 ? '0.00000' : f5(x));
+  const lab = {core: 'recent usage', minutes: 'minutes', rates: 'per-36 rates', context: 'game context', own_injury: 'own injury status', team_injury: 'teammate injuries', hierarchy: 'rotation hierarchy', pairwise: 'pairwise with/without', roles: 'role clustering'};
+  const draw2 = id => {
+    let rows;
+    if (id === 'add') rows = DATA.ablation.order.slice(1).map(g => { const p = DATA.ablation.add[g].vs_core.pooled; return {g, p}; });
+    else rows = DATA.ablation.order.map(g => { const p = DATA.ablation.loo[g].vs_full.pooled; return {g, p}; });
+    const R = rows.map(({g, p}) => ({label: lab[g], lo: p[1], hi: p[2], dots: [{v: p[0], color: (id === 'add' ? p[2] < 0 : p[1] > 0) ? 'var(--s1)' : 'var(--muted)', name: 'Change in MAE'}], label2: p[0],
+      tip: [{k: 'Change in MAE', v: f5(p[0])}, {k: '95% CI', v: `${f5(p[1])} to ${f5(p[2])}`}, {k: 'Verdict', v: (id === 'add' ? p[2] < 0 : p[1] > 0) ? 'helps' : 'no detectable effect'}]}));
+    if (id === 'loo') Object.entries(DATA.ablation.block).forEach(([n, v]) => { const p = v.vs_full.pooled; R.push({label: 'ALL: ' + n, lo: p[1], hi: p[2], dots: [{v: p[0], color: 'var(--s2)', name: 'Change in MAE'}], label2: p[0], tip: [{k: 'Change in MAE', v: f5(p[0])}, {k: '95% CI', v: `${f5(p[1])} to ${f5(p[2])}`}]}); });
+    const lo = Math.min(...R.map(r => r.lo)), hi = Math.max(...R.map(r => r.hi));
+    dotPlot(c2.body, R, {min: lo - (hi - lo) * 0.05, max: hi + (hi - lo) * 0.18, left: 200, zero: 0, fmt: f5, labelFmt: f5z, xlabel: id === 'add' ? 'change in MAE when added to recent-usage features' : 'change in MAE when removed from the full model', rowH: 28});
+    c2.setTable(['Group', 'Change in MAE', 'CI low', 'CI high'], R.map(r => [r.label, f5(r.dots[0].v), f5(r.lo), f5(r.hi)]));
+  };
+  seg(sel2, [{id: 'add', label: 'Add to recent usage'}, {id: 'loo', label: 'Remove from full model'}], 'add', id => { draw2(id); leg(id); });
+  const leg = id => legendItems(c2.legend, [{label: 'clear effect', color: 'var(--s1)', dot: true}, {label: 'no detectable effect', color: 'var(--muted)', dot: true}].concat(id === 'loo' ? [{label: 'several groups removed together', color: 'var(--s2)', dot: true}] : []));
+  draw2('add'); leg('add');
+  c2.noteEl.textContent = 'Teammate injuries, rotation hierarchy and role features each help a lot when added alone, but they overlap, so removing any one barely matters. Removing all of them together costs 0.00036 MAE. Pairwise effects, own status and role clustering do not help once the others are in.';
+
+  const c3 = card(document.getElementById('cOwn'), "The player's own report status", 'Actual usage minus last-10 average, by status on the report that day.');
+  const names = ['no report', 'Available', 'Probable', 'Questionable', 'Doubtful', 'Out'];
+  const rows = I.own_status.map(r => ({label: names[r.own_sev] + '  (n=' + r.n.toLocaleString() + ')', lo: (r.delta - 1.96 * r.se) * 100, hi: (r.delta + 1.96 * r.se) * 100,
+    dots: [{v: r.delta * 100, color: 'var(--s1)', name: 'Mean change'}], label2: r.delta * 100,
+    tip: [{k: 'Mean change', v: f(r.delta * 100, 2) + ' pts'}, {k: 'Average minutes', v: f(r.min, 1)}, {k: 'Player-games', v: r.n.toLocaleString()}]}));
+  dotPlot(c3.body, rows, {min: -4, max: 3, left: 190, zero: 0, fmt: x => f(x, 1), labelFmt: x => f(x, 2), xlabel: 'change in usage (percentage points)', rowH: 30});
+  c3.setTable(['Status', 'Player-games', 'Mean change, pts', 'Average minutes'], I.own_status.map(r => [names[r.own_sev], r.n, f(r.delta * 100, 2), f(r.min, 1)]));
+  c3.noteEl.textContent = 'Only players who played 10 or more minutes appear here, so players on the report who did play are a selected group. Doubtful and Out have very few rows (35 and 127), so their estimates are wide.';
+})();
+
+/* drivers */
+(function drivers() {
+  const G = DATA.ablation.order, GC = {};
+  G.forEach((g, i) => GC[g] = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)', 'var(--s8)', 'var(--muted)'][i]);
+  const c = card(document.getElementById('cShap'), 'Top variables (mean |SHAP|)', "Average absolute contribution to the prediction, in usage points, from LightGBM on the four test sets.");
+  const S = DATA.importance.shap;
+  dotPlot(c.body, S.map(r => ({label: r.f, dots: [{v: r.v * 100, color: GC[r.g], name: 'mean |SHAP|, pts'}], tip: [{k: 'Group', v: r.g}, {k: 'Mean |SHAP|', v: f(r.v * 100, 3) + ' pts'}, {k: 'Share of tree gain', v: f(r.gain * 100, 1) + '%'}]})),
+    {W: 480, R: 50, min: 0, max: Math.max(...S.map(r => r.v * 100)) * 1.12, left: 120, rowH: 24, fmt: x => f(x, 2), xlabel: 'mean |SHAP| (usage percentage points)'});
+  const used = [...new Set(S.map(r => r.g))];
+  legendItems(c.legend, used.map(g => ({label: g, color: GC[g], dot: true})));
+  c.setTable(['Variable', 'Group', 'Mean |SHAP| (pts)', 'Tree gain share'], S.map(r => [r.f, r.g, f(r.v * 100, 3), f(r.gain * 100, 1) + '%']));
+  c.noteEl.textContent = 'EWMA of usage, minutes-weighted last-10 usage and the season mean dominate. Injury-related variables (healthy_load_total, own_load, t_vac_out_max) enter further down the list.';
+
+  const c2 = card(document.getElementById('cPerm'), 'Permutation importance by group', 'How much MAE rises when a group is shuffled (average of four test sets). Values are in units of 0.0001 MAE; the recent-usage group is far larger and is given in the table.');
+  const P = DATA.importance.perm;
+  const rows = G.map(g => ({label: g, dots: [{v: P[g] * 1e4, color: GC[g], name: 'MAE increase (x1e-4)'}]}));
+  rows.sort((a, b) => b.dots[0].v - a.dots[0].v);
+  const big = rows.filter(r => r.dots[0].v > 50);
+  dotPlot(c2.body, rows.filter(r => r.dots[0].v <= 50), {W: 480, R: 50, min: 0, max: 5.5, left: 100, rowH: 30, fmt: x => f(x, 1), xlabel: 'MAE increase when shuffled (x 0.0001)'});
+  c2.setTable(['Group', 'MAE increase when shuffled'], rows.map(r => [r.label, f(r.dots[0].v / 1e4, 5)]));
+  c2.noteEl.textContent = 'Shuffling the recent-usage group raises MAE by ' + f(P.core, 4) + ' (off the chart, so omitted above; see table). Among the rest, rotation hierarchy matters most, then minutes and teammate injuries. Own injury status is essentially zero: the model barely uses it.';
+
+  const c3 = card(document.getElementById('cTopk'), 'How few variables do we need?', 'LightGBM refit on the top-k variables (ranked by tree gain on each fold\'s training set). Axis does not start at zero.');
+  const tk = DATA.importance.topk, ks = Object.keys(tk).map(Number).sort((a, b) => a - b);
+  const series = FN.map((n, i) => ({name: n, color: SERIES[i], ys: ks.map(k => tk[k][i])}));
+  const mw = DATA.simple.find(s => s.name === 'minutes-wtd EWMA a=0.1').mae;
+  series.push({name: 'Baseline: min-wtd EWMA (holdout)', color: 'var(--base)', dash: '5 4', noDots: true, ys: ks.map(() => mw[3])});
+  lineWithLegend(c3, series, {xs: ks.map((_, i) => i), xlab: (v, i) => String(ks[i]), xtitle: 'number of variables (k)', height: 340}, ['k', ...series.map(s => s.name)], ks.map((k, i) => [k, ...series.map(s => f4(s.ys[i]))]));
+  c3.noteEl.textContent = 'Top 5 on holdout: ' + DATA.importance.k5.join(', ') + '. Top 12 adds: ' + DATA.importance.k12.slice(5).join(', ') + '. The first five variables are all usage history; the injury-related variables arrive between 5 and 20.';
+})();
+
+/* anatomy */
+(function anatomy() {
+  const c = card(document.getElementById('cSeg'), 'Model vs plain average, by situation', 'MAE of LightGBM and the EWMA average on the four test sets pooled. Axis does not start at zero.');
+  const sel = h('div', {}, c.ctl);
+  const keys = Object.keys(DATA.segments);
+  const draw = id => {
+    const arr = DATA.segments[id];
+    const rows = arr.map(r => ({label: r.seg + '  (n=' + r.n.toLocaleString() + ')', dots: [{v: r.ewma, color: 'var(--s2)', name: 'EWMA average'}, {v: r.gbm, color: 'var(--s1)', name: 'LightGBM'}], labelText: `${f4(r.gbm)} vs ${f4(r.ewma)}  (${f((1 - r.gbm / r.ewma) * 100, 0)}% lower)`,
+      tip: [{k: 'EWMA average', v: f4(r.ewma), color: 'var(--s2)'}, {k: 'LightGBM', v: f4(r.gbm), color: 'var(--s1)'}, {k: 'Improvement', v: f((1 - r.gbm / r.ewma) * 100, 1) + '%'}, {k: 'Player-games', v: r.n.toLocaleString()}]}));
+    const vs = arr.flatMap(r => [r.ewma, r.gbm]);
+    dotPlot(c.body, rows, {min: Math.floor(Math.min(...vs) * 1000 - 1) / 1000, max: Math.ceil(Math.max(...vs) * 1000 + 1) / 1000, left: 200, R: 150, rowH: 34, xlabel: 'MAE'});
+    c.setTable(['Segment', 'Player-games', 'EWMA MAE', 'LightGBM MAE', 'Improvement'], arr.map(r => [r.seg, r.n, f4(r.ewma), f4(r.gbm), f((1 - r.gbm / r.ewma) * 100, 1) + '%']));
+  };
+  seg(sel, keys.map(k => ({id: k, label: k.replace(' by fresh Out teammates', '')})), keys[0], draw);
+  draw(keys[0]);
+  legendItems(c.legend, [{label: 'EWMA average', color: 'var(--s2)', dot: true}, {label: 'LightGBM', color: 'var(--s1)', dot: true}]);
+  c.noteEl.textContent = 'Biggest gains: fewer than 5 prior games, and when teammates holding a lot of usage are out. Smallest: established players who played a lot recently.';
+
+  const c2 = card(document.getElementById('cCal'), 'Calibration', 'Mean prediction vs mean actual usage in each prediction decile (all test rows).');
+  const W = 360, H = 320, L = 50, B = 40, T = 10, R = 12;
+  const svg = mkSvg(c2.body, W, H);
+  const cal = DATA.calibration, lo = 0.09, hi = 0.33;
+  const x = v => L + (v - lo) / (hi - lo) * (W - L - R), y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  ticks(lo, hi, 5).forEach(t => { el('line', {x1: L, x2: W - R, y1: y(t), y2: y(t), stroke: 'var(--grid)'}, svg); el('text', {x: L - 6, y: y(t) + 4, 'text-anchor': 'end'}, svg, f(t, 2)); el('text', {x: x(t), y: H - B + 16, 'text-anchor': 'middle'}, svg, f(t, 2)); });
+  el('line', {x1: x(lo), y1: y(lo), x2: x(hi), y2: y(hi), stroke: 'var(--axis)', 'stroke-width': 1.5}, svg);
+  el('text', {x: L + (W - L - R) / 2, y: H - 4, 'text-anchor': 'middle'}, svg, 'predicted usage');
+  el('text', {x: 2, y: 8}, svg, 'actual');
+  cal.forEach((r, i) => {
+    el('circle', {cx: x(r.pred), cy: y(r.actual), r: 5, fill: 'var(--s1)', stroke: 'var(--surface)', 'stroke-width': 2}, svg);
+    const hit = el('circle', {cx: x(r.pred), cy: y(r.actual), r: 14, fill: 'transparent', tabindex: 0}, svg);
+    hit.addEventListener('pointermove', ev => showTip(ev, 'Decile ' + (i + 1), [{k: 'Predicted', v: f(r.pred, 3)}, {k: 'Actual', v: f(r.actual, 3)}, {k: 'Rows', v: r.n.toLocaleString()}]));
+    hit.addEventListener('pointerleave', hideTip);
+  });
+  c2.setTable(['Decile', 'Mean predicted', 'Mean actual', 'Rows'], cal.map((r, i) => [i + 1, f(r.pred, 4), f(r.actual, 4), r.n]));
+  c2.noteEl.textContent = 'Predictions sit on the diagonal: the model is well calibrated, with no systematic bias for high- or low-usage players.';
+
+  const c3 = card(document.getElementById('cRes'), 'Size of the misses', 'Distribution of prediction minus actual usage. Single games are noisy.');
+  const Hh = DATA.residual, W2 = 360, H2 = 320, L2 = 40, B2 = 40, T2 = 10;
+  const svg2 = mkSvg(c3.body, W2, H2);
+  const mx = Math.max(...Hh.counts), bw = (W2 - L2 - 12) / Hh.counts.length;
+  ticks(0, mx, 4).forEach(t => { const yy = T2 + (1 - t / mx) * (H2 - T2 - B2); el('line', {x1: L2, x2: W2 - 12, y1: yy, y2: yy, stroke: 'var(--grid)'}, svg2); el('text', {x: L2 - 6, y: yy + 4, 'text-anchor': 'end'}, svg2, t >= 1000 ? (t / 1000) + 'k' : t); });
+  Hh.counts.forEach((cnt, i) => {
+    const hh = cnt / mx * (H2 - T2 - B2), bx = L2 + i * bw;
+    const bar = el('rect', {x: bx + 1, y: T2 + (H2 - T2 - B2) - hh, width: Math.max(1, bw - 2), height: hh, fill: 'var(--s1)', rx: 2}, svg2);
+    const hit = el('rect', {x: bx, y: T2, width: bw, height: H2 - T2 - B2, fill: 'transparent', tabindex: 0}, svg2);
+    hit.addEventListener('pointermove', ev => { bar.setAttribute('opacity', 0.7); showTip(ev, f(Hh.edges[i], 3) + ' to ' + f(Hh.edges[i + 1], 3), [{k: 'Player-games', v: cnt.toLocaleString()}]); });
+    hit.addEventListener('pointerleave', () => { bar.setAttribute('opacity', 1); hideTip(); });
+  });
+  [-0.2, -0.1, 0, 0.1, 0.2].forEach(t => el('text', {x: L2 + (t + 0.2) / 0.4 * (W2 - L2 - 12), y: H2 - B2 + 16, 'text-anchor': 'middle'}, svg2, f(t, 1)));
+  el('text', {x: L2 + (W2 - L2 - 12) / 2, y: H2 - 4, 'text-anchor': 'middle'}, svg2, 'prediction minus actual');
+  c3.setTable(['Bin from', 'Bin to', 'Player-games'], Hh.counts.map((n, i) => [f(Hh.edges[i], 3), f(Hh.edges[i + 1], 3), n]));
+  c3.noteEl.textContent = 'Standard deviation of the miss: ' + f3(Hh.sd) + ' usage points; 80% of misses fall between ' + f3(Hh.p10) + ' and +' + f3(Hh.p90) + '. This spread is the floor that better modelling has not broken through.';
+})();
+
+/* theme toggle */
+document.getElementById('themeBtn').onclick = () => {
+  const r = document.documentElement, cur = r.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.setAttribute('data-theme', dark ? 'light' : 'dark');
+};
+</script>
+</body>
+</html>
