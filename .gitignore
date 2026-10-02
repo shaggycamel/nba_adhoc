@@ -18,3 +18,4 @@ credentials.ini
 # Local data exports
 data/
 .cache/
+catboost_info/
