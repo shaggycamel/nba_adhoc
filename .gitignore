@@ -17,3 +17,5 @@ credentials.ini
 
 # Local data exports
 data/
+
+.cache/
