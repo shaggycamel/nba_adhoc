@@ -14,6 +14,7 @@ from .dataset import build
 from .evaluate import run_baselines, season_splits
 from .features import feature_columns
 from .hierarchy import ROTATION_COLS
+from .roles import N_ROLES
 from .synergy import ABSORPTION_COLS
 from .injuries import ABSENCE_COLS, INJURY_START
 from .models import fit_lightgbm, fit_ridge
@@ -32,11 +33,13 @@ def main() -> None:
     if not args.all_seasons:
         frame = frame.filter(pl.col("game_date") >= pl.lit(INJURY_START).str.to_date())
 
-    structural = set(ABSENCE_COLS) | set(ROTATION_COLS) | set(ABSORPTION_COLS)
+    role_cols = [f"role_{r}" for r in range(N_ROLES)] + ["vacated_same_role", "vacated_other_role"]
+    structural = set(ABSENCE_COLS) | set(ROTATION_COLS) | set(ABSORPTION_COLS) | set(role_cols)
     base_cols = [c for c in feature_columns(frame) if c not in structural]
     absence_cols = base_cols + [c for c in ABSENCE_COLS if c in frame.columns]
     rotation_cols = absence_cols + [c for c in ROTATION_COLS if c in frame.columns]
     full_cols = rotation_cols + [c for c in ABSORPTION_COLS if c in frame.columns]
+    with_roles = rotation_cols + [c for c in role_cols if c in frame.columns]
 
     rows = []
     for sp in season_splits(sorted(frame["season"].unique().to_list()), n_folds=args.folds, min_train=2):
@@ -51,6 +54,7 @@ def main() -> None:
                 ("history+absence", absence_cols),
                 ("history+absence+rotation", rotation_cols),
                 ("all", full_cols),
+                ("history+absence+rotation+roles", with_roles),
             ):
                 m, _ = fit(train, valid, cols)
                 rows.append({"fold": sp.name, "features": label, "model": name, **m})
