@@ -63,9 +63,11 @@ def add_prior_features(
     out = out.with_columns(means).drop([c for c in out.columns if c.startswith("_")])
 
     # Trend: is the player's recent usage drifting away from their season norm?
+    # Shortest against longest window, so this works for any window set.
+    short, long = f"usg_pct_r{windows[0]}", f"usg_pct_r{windows[-1]}"
     out = out.with_columns(
-        usg_trend_short=pl.col("usg_pct_r3") - pl.col("usg_pct_r10"),
-        usg_vs_season=pl.col("usg_pct_r5") - pl.col("usg_pct_season"),
+        usg_trend_short=pl.col(short) - pl.col(long),
+        usg_vs_season=pl.col(short) - pl.col("usg_pct_season"),
         is_season_debut=(pl.col("season_game_n") == 0),
         is_b2b=(pl.col("days_rest") == 1),
         days_rest_capped=pl.col("days_rest").clip(upper_bound=10),
