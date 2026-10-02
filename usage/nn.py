@@ -32,7 +32,7 @@ def make_seq(frame, src):
     days = src["game_date"].cast(pl.Int32).to_numpy().astype(np.float32)
     pid = src["player_id"].to_numpy()
     idx = frame.select("player_id", "game_id").join(src.select("player_id", "game_id", "idx"),
-                                                    on=["player_id", "game_id"], how="left")["idx"].to_numpy()
+                                                    on=["player_id", "game_id"], how="left")["idx"].cast(pl.Int64).to_numpy()
     n = len(idx)
     out = np.zeros((n, L, S.shape[1] + 2), dtype=np.float32)
     for k in range(1, L + 1):
