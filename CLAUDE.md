@@ -24,7 +24,7 @@ Predict **player usage** (`usg_pct` in `nba.player_box_score`) for a player's ne
 - Cluster: `nba-data-mgmt` (id `11af18b7-ef5e-41b2-b3b7-5db438b1d403`), database `nba`, schema `nba`.
 - **Read-only, always.** Use only `select_query`, `list_*`, `get_table_schema`, `explain_query`, `show_statement` and `show_running_queries`.
 - Never use `create_database`, `create_table`, `insert_rows`, or any DDL/DML, even if a task seems to need it. Ask the user to run writes themselves.
-- Use only schema `nba.nba`. Ignore schemas `util`, `anl` and `fty`: don't query them or use their tables as features.
+- Schema-agnostic for the local parquet files: use every file under `data/` (`nba`, `statyx`, `util`) as needed, for features or ID mapping. Only live DB queries stay limited to `nba.nba`; ignore `anl` and `fty`.
 - The MCP server caps each result at ~10 KB and this can't be raised. Pack rows server-side (gzip+base64, see `nba_usage/extract.py`) instead of paging raw rows.
 - Prefer the `*_vw` views (e.g. `nba_injuries_vw`, `nba_player_box_score_vw`) over raw tables when they cover the question.
 - Check the schema (`get_table_schema`) before writing queries. Add explicit `LIMIT`s and filters on large tables (`player_box_score` is ~590k rows).
