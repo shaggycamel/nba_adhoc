@@ -21,10 +21,9 @@ Predict **player usage** (`usg_pct` in `nba.player_box_score`) for a player's ne
 - Use `polars` for data analysis. Avoid `pandas` unless a library requires it; convert at the boundary and say why.
 
 ## Data
-- **Parquet only. Never connect to the database** (no CockroachDB MCP, no `COCKROACH_URL`, no SQL port, no `nba_usage/extract.py` or `export_local.py`).
+- **Parquet only. Never connect to the database** (no CockroachDB MCP, no `COCKROACH_URL`, no SQL port).
 - Use every parquet file under `data/` (`nba`, `statyx`, `util`) as needed, for features or ID mapping. The schemas are interchangeable.
 - Read with `polars` (`pl.read_parquet`, or `pl.scan_parquet` for `player_box_score`, ~590k rows).
-- `data/gen.py` regenerates the files from Postgres; don't run it.
 
 ## Secrets
 - Never print, log or commit `COCKROACH_URL`, API keys or any credential. `credentials.ini` is git-ignored; keep it that way.
