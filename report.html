@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forecasting next-game usage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
+<style>
+/* Layout: one measured reading column; charts and tables break out wider,
+   each in its own scroll container so the page never scrolls sideways. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #14171c;
+  --ink-2: #434b58;
+  --muted: #6d7686;
+  --line: #e1e5eb;
+  --line-soft: #eef1f5;
+  --accent: #2a78d6;
+  --s-model: #2a78d6;
+  --s-base: #eb6834;
+  --good: #0f7b46;
+  --bad: #b0442c;
+  --grid: #e6eaef;
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111318;
+    --surface: #191c22;
+    --ink: #e9ecf1;
+    --ink-2: #b3bcc9;
+    --muted: #8a94a3;
+    --line: #2a2f38;
+    --line-soft: #22262e;
+    --accent: #3987e5;
+    --s-model: #3987e5;
+    --s-base: #d95926;
+    --good: #35a46b;
+    --bad: #e07a62;
+    --grid: #272c35;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111318; --surface: #191c22; --ink: #e9ecf1; --ink-2: #b3bcc9;
+  --muted: #8a94a3; --line: #2a2f38; --line-soft: #22262e; --accent: #3987e5;
+  --s-model: #3987e5; --s-base: #d95926; --good: #35a46b; --bad: #e07a62;
+  --grid: #272c35; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 20px; padding-block: 56px 96px; }
+
+header.masthead { border-bottom: 2px solid var(--ink); padding-bottom: 22px; margin-bottom: 40px; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 14px;
+}
+h1 {
+  font-family: var(--font-display); font-weight: 500; font-size: clamp(30px, 6vw, 46px);
+  line-height: 1.1; margin: 0 0 14px; text-wrap: balance; letter-spacing: -.01em;
+}
+.standfirst { font-size: 17px; color: var(--ink-2); margin: 0; max-width: 62ch; }
+
+h2 {
+  font-family: var(--font-display); font-weight: 500; font-size: 27px; line-height: 1.2;
+  margin: 56px 0 6px; text-wrap: balance;
+}
+h2 + .sectionnote { color: var(--muted); font-size: 14px; margin: 0 0 20px; max-width: 62ch; }
+h3 { font-size: 15px; font-weight: 600; margin: 32px 0 8px; letter-spacing: -.005em; }
+p { max-width: 65ch; margin: 0 0 16px; }
+strong { font-weight: 600; }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--line-soft); padding: 1px 5px; border-radius: 3px; }
+a { color: var(--accent); }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin: 28px 0 8px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; min-width: 0; }
+.tile .k { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tile .v { font-family: var(--font-mono); font-size: 27px; font-variant-numeric: tabular-nums; margin-top: 6px; letter-spacing: -.02em; }
+.tile .s { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+.tile.lead .v { color: var(--accent); }
+
+figure { margin: 24px 0 8px; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 10px; max-width: 62ch; }
+.chartwrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 6px; }
+svg.chart { display: block; width: 100%; min-width: 560px; height: auto; font-family: var(--font-body); }
+.grid { stroke: var(--grid); stroke-width: 1; }
+.refline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; }
+.connector { stroke: var(--line); stroke-width: 2; }
+.dot { stroke: var(--surface); stroke-width: 2; }
+.s-model { fill: var(--s-model); stroke: var(--s-model); }
+/* Must follow .s-model: a filled polyline renders as a wedge, not a line. */
+polyline.series { fill: none; stroke: var(--s-model); stroke-width: 2; stroke-linejoin: round; }
+circle.s-model { stroke: var(--surface); }
+.s-base { fill: var(--s-base); }
+circle.s-base { stroke: var(--surface); }
+.s-fold1 { fill: var(--s-base); }
+.s-fold2 { fill: var(--s-model); }
+text { fill: var(--ink-2); }
+.tick, .reflabel { font-size: 11px; fill: var(--muted); font-family: var(--font-mono); }
+.rowlabel { font-size: 12.5px; fill: var(--ink-2); }
+.value, .pointlabel { font-size: 11px; fill: var(--muted); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.axistitle { font-size: 11px; fill: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 18px; margin: 12px 0 0; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.swatch { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.sw-model { background: var(--s-model); }
+.sw-base { background: var(--s-base); }
+
+.tablewrap { overflow-x: auto; margin: 20px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+th { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+tbody tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+tr.is-best td { background: color-mix(in srgb, var(--accent) 9%, transparent); font-weight: 600; }
+
+.verdict { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; }
+.verdict.keep { color: var(--good); background: color-mix(in srgb, var(--good) 13%, transparent); }
+.verdict.drop { color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, transparent); }
+
+.callout { border-left: 3px solid var(--accent); background: var(--surface); padding: 16px 20px; margin: 24px 0; border-radius: 0 8px 8px 0; }
+.callout p:last-child { margin-bottom: 0; }
+
+ul.notes { max-width: 65ch; padding-left: 20px; margin: 0 0 16px; }
+ul.notes li { margin-bottom: 10px; }
+
+footer { margin-top: 72px; padding-top: 22px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+footer code { font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="masthead">
+  <p class="eyebrow">nba_adhoc &middot; branch opus-attempt</p>
+  <h1>Forecasting next-game usage</h1>
+  <p class="standfirst">What predicts a player's <code>usg_pct</code> in their next game, using only
+  what is known before tip-off &mdash; which features earn their place, which were tried and dropped,
+  and how much any of it beats simply averaging recent games.</p>
+</header>
+
+<section>
+  <div class="tiles">
+    <div class="tile lead">
+      <div class="k">best model &middot; 2025-26</div>
+      <div class="v">0.04886</div>
+      <div class="s">elasticnet, R&sup2; 0.372</div>
+    </div>
+    <div class="tile">
+      <div class="k">best baseline</div>
+      <div class="v">0.05099</div>
+      <div class="s">ewm3, R&sup2; 0.318</div>
+    </div>
+    <div class="tile">
+      <div class="k">improvement</div>
+      <div class="v">4.2%</div>
+      <div class="s">on MAE, repeated on both folds</div>
+    </div>
+  </div>
+
+  <p style="margin-top:28px">The winning combination is a <strong>regularised linear model on lagged usage
+  history plus injury-absence and rotation-position features</strong>. It beats the best baseline by about
+  4% on MAE and adds roughly 0.05 to R&sup2;, consistently across both validation seasons.</p>
+
+  <p>That is a real gain and a modest one. The honest summary is that <strong>usage is mostly
+  autocorrelated and only slightly contextual</strong>: an exponentially weighted mean of a player's
+  recent usage gets most of the way there, and everything else is a small correction on top.</p>
+
+  <div class="callout">
+    <p><strong>How this was measured.</strong> Expanding-window season folds &mdash; train on every earlier
+    season, score the next one. Nothing is shuffled. Every feature is computed from games strictly before
+    the one being predicted, and usage is modelled conditional on the player appearing.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Algorithm choice barely matters</h2>
+  <p class="sectionnote">Every algorithm on the same features and the same fold (2025-26).
+  The axis does not start at zero; these values differ in the fourth decimal.</p>
+  <figure>
+    <div class="chartwrap"><svg viewBox="0 0 760 440" class="chart" role="img">
+<line class="grid" x1="266.9" y1="22" x2="266.9" y2="398.0"/>
+<text class="tick" x="266.9" y="424" text-anchor="middle">0.050</text>
+<line class="grid" x1="392.7" y1="22" x2="392.7" y2="398.0"/>
+<text class="tick" x="392.7" y="424" text-anchor="middle">0.055</text>
+<line class="grid" x1="518.6" y1="22" x2="518.6" y2="398.0"/>
+<text class="tick" x="518.6" y="424" text-anchor="middle">0.060</text>
+<line class="grid" x1="644.5" y1="22" x2="644.5" y2="398.0"/>
+<text class="tick" x="644.5" y="424" text-anchor="middle">0.065</text>
+<text class="rowlabel" x="182" y="45.5" text-anchor="end">elasticnet</text>
+<line class="connector" x1="196" y1="41.5" x2="238.2" y2="41.5"/>
+<circle class="dot s-model" cx="238.2" cy="41.5" r="5.5"/>
+<text class="value" x="251.2" y="45.5">0.04886</text>
+<text class="rowlabel" x="182" y="68.5" text-anchor="end">ridge</text>
+<line class="connector" x1="196" y1="64.5" x2="238.7" y2="64.5"/>
+<circle class="dot s-model" cx="238.7" cy="64.5" r="5.5"/>
+<text class="value" x="251.7" y="68.5">0.04888</text>
+<text class="rowlabel" x="182" y="91.5" text-anchor="end">catboost</text>
+<line class="connector" x1="196" y1="87.5" x2="239.7" y2="87.5"/>
+<circle class="dot s-model" cx="239.7" cy="87.5" r="5.5"/>
+<text class="value" x="252.7" y="91.5">0.04892</text>
+<text class="rowlabel" x="182" y="114.5" text-anchor="end">xgboost</text>
+<line class="connector" x1="196" y1="110.5" x2="239.7" y2="110.5"/>
+<circle class="dot s-model" cx="239.7" cy="110.5" r="5.5"/>
+<text class="value" x="252.7" y="114.5">0.04892</text>
+<text class="rowlabel" x="182" y="137.5" text-anchor="end">random forest</text>
+<line class="connector" x1="196" y1="133.5" x2="240.2" y2="133.5"/>
+<circle class="dot s-model" cx="240.2" cy="133.5" r="5.5"/>
+<text class="value" x="253.2" y="137.5">0.04894</text>
+<text class="rowlabel" x="182" y="160.5" text-anchor="end">lightgbm</text>
+<line class="connector" x1="196" y1="156.5" x2="241.7" y2="156.5"/>
+<circle class="dot s-model" cx="241.7" cy="156.5" r="5.5"/>
+<text class="value" x="254.7" y="160.5">0.04900</text>
+<text class="rowlabel" x="182" y="183.5" text-anchor="end">extra trees</text>
+<line class="connector" x1="196" y1="179.5" x2="242.7" y2="179.5"/>
+<circle class="dot s-model" cx="242.7" cy="179.5" r="5.5"/>
+<text class="value" x="255.7" y="183.5">0.04904</text>
+<text class="rowlabel" x="182" y="206.5" text-anchor="end">mlp embeddings</text>
+<line class="connector" x1="196" y1="202.5" x2="250.0" y2="202.5"/>
+<circle class="dot s-model" cx="250.0" cy="202.5" r="5.5"/>
+<text class="value" x="263.0" y="206.5">0.04933</text>
+<text class="rowlabel" x="182" y="229.5" text-anchor="end">gru sequence</text>
+<line class="connector" x1="196" y1="225.5" x2="256.0" y2="225.5"/>
+<circle class="dot s-model" cx="256.0" cy="225.5" r="5.5"/>
+<text class="value" x="269.0" y="229.5">0.04957</text>
+<text class="rowlabel" x="182" y="252.5" text-anchor="end">ewm3</text>
+<line class="connector" x1="196" y1="248.5" x2="291.8" y2="248.5"/>
+<circle class="dot s-base" cx="291.8" cy="248.5" r="5.5"/>
+<text class="value" x="304.8" y="252.5">0.05099</text>
+<text class="rowlabel" x="182" y="275.5" text-anchor="end">last10 mean</text>
+<line class="connector" x1="196" y1="271.5" x2="294.8" y2="271.5"/>
+<circle class="dot s-base" cx="294.8" cy="271.5" r="5.5"/>
+<text class="value" x="307.8" y="275.5">0.05111</text>
+<text class="rowlabel" x="182" y="298.5" text-anchor="end">season mean</text>
+<line class="connector" x1="196" y1="294.5" x2="302.4" y2="294.5"/>
+<circle class="dot s-base" cx="302.4" cy="294.5" r="5.5"/>
+<text class="value" x="315.4" y="298.5">0.05141</text>
+<text class="rowlabel" x="182" y="321.5" text-anchor="end">last5 mean</text>
+<line class="connector" x1="196" y1="317.5" x2="341.9" y2="317.5"/>
+<circle class="dot s-base" cx="341.9" cy="317.5" r="5.5"/>
+<text class="value" x="354.9" y="321.5">0.05298</text>
+<text class="rowlabel" x="182" y="344.5" text-anchor="end">career mean</text>
+<line class="connector" x1="196" y1="340.5" x2="367.1" y2="340.5"/>
+<circle class="dot s-base" cx="367.1" cy="340.5" r="5.5"/>
+<text class="value" x="380.1" y="344.5">0.05398</text>
+<text class="rowlabel" x="182" y="367.5" text-anchor="end">last3 mean</text>
+<line class="connector" x1="196" y1="363.5" x2="402.1" y2="363.5"/>
+<circle class="dot s-base" cx="402.1" cy="363.5" r="5.5"/>
+<text class="value" x="415.1" y="367.5">0.05537</text>
+<text class="rowlabel" x="182" y="390.5" text-anchor="end">global mean</text>
+<line class="connector" x1="196" y1="386.5" x2="659.8" y2="386.5"/>
+<circle class="dot s-base" cx="659.8" cy="386.5" r="5.5"/>
+<text class="value" x="672.8" y="390.5">0.06561</text>
+<text class="axistitle" x="380" y="434" text-anchor="middle">MAE</text>
+</svg></div>
+    <div class="legend"><span><i class="swatch sw-model"></i>fitted model</span><span><i class="swatch sw-base"></i>baseline</span></div>
+    <figcaption>All seven classical algorithms land within 0.0002 MAE of one another, with the two linear
+    models at the top. The two neural networks are the worst of the fitted models, though all nine still
+    beat every baseline. There is no non-linear structure here worth chasing &mdash; spend effort on
+    features, not on model class.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>What drives usage</h2>
+  <p class="sectionnote">Cumulative feature sets, Ridge, both folds. The last two rows are alternatives
+  to the third rather than additions to each other.</p>
+  <figure>
+    <div class="chartwrap"><svg viewBox="0 0 760 248" class="chart" role="img">
+<line class="grid" x1="323.5" y1="20" x2="323.5" y2="206.0"/>
+<text class="tick" x="323.5" y="232" text-anchor="middle">0.049</text>
+<line class="grid" x1="477.8" y1="20" x2="477.8" y2="206.0"/>
+<text class="tick" x="477.8" y="232" text-anchor="middle">0.050</text>
+<line class="grid" x1="632.1" y1="20" x2="632.1" y2="206.0"/>
+<text class="tick" x="632.1" y="232" text-anchor="middle">0.050</text>
+<text class="rowlabel" x="218" y="48.0" text-anchor="end">usage history only</text>
+<line class="connector" x1="480.9" y1="44.0" x2="650.6" y2="44.0"/>
+<circle class="dot s-fold1" cx="650.6" cy="44.0" r="5.5"/>
+<circle class="dot s-fold2" cx="480.9" cy="44.0" r="5.5"/>
+<text class="rowlabel" x="218" y="84.0" text-anchor="end">+ injury absence</text>
+<line class="connector" x1="376.0" y1="80.0" x2="576.5" y2="80.0"/>
+<circle class="dot s-fold1" cx="576.5" cy="80.0" r="5.5"/>
+<circle class="dot s-fold2" cx="376.0" cy="80.0" r="5.5"/>
+<text class="rowlabel" x="218" y="120.0" text-anchor="end">+ rotation position</text>
+<line class="connector" x1="286.5" y1="116.0" x2="462.4" y2="116.0"/>
+<circle class="dot s-fold1" cx="462.4" cy="116.0" r="5.5"/>
+<circle class="dot s-fold2" cx="286.5" cy="116.0" r="5.5"/>
+<text class="rowlabel" x="218" y="156.0" text-anchor="end">+ pairwise absorption</text>
+<line class="connector" x1="283.4" y1="152.0" x2="456.2" y2="152.0"/>
+<circle class="dot s-fold1" cx="456.2" cy="152.0" r="5.5"/>
+<circle class="dot s-fold2" cx="283.4" cy="152.0" r="5.5"/>
+<text class="rowlabel" x="218" y="192.0" text-anchor="end">+ role clusters</text>
+<line class="connector" x1="289.6" y1="188.0" x2="462.4" y2="188.0"/>
+<circle class="dot s-fold1" cx="462.4" cy="188.0" r="5.5"/>
+<circle class="dot s-fold2" cx="289.6" cy="188.0" r="5.5"/>
+<text class="axistitle" x="380" y="242" text-anchor="middle">MAE</text>
+</svg></div>
+    <div class="legend"><span><i class="swatch sw-base"></i>validate 2024-25</span><span><i class="swatch sw-model"></i>validate 2025-26</span></div>
+    <figcaption>Injury absence and rotation position each buy about 0.0003 MAE. Pairwise absorption and
+    role clusters buy nothing.</figcaption>
+  </figure>
+
+  <h3>The smallest set that holds up</h3>
+  <figure>
+    <div class="chartwrap"><svg viewBox="0 0 760 330" class="chart" role="img">
+<line class="grid" x1="66" y1="236.6" x2="570" y2="236.6"/>
+<text class="tick" x="56" y="240.6" text-anchor="end">0.0490</text>
+<line class="grid" x1="66" y1="189.2" x2="570" y2="189.2"/>
+<text class="tick" x="56" y="193.2" text-anchor="end">0.0495</text>
+<line class="grid" x1="66" y1="141.9" x2="570" y2="141.9"/>
+<text class="tick" x="56" y="145.9" text-anchor="end">0.0500</text>
+<line class="grid" x1="66" y1="94.6" x2="570" y2="94.6"/>
+<text class="tick" x="56" y="98.6" text-anchor="end">0.0505</text>
+<line class="grid" x1="66" y1="47.2" x2="570" y2="47.2"/>
+<text class="tick" x="56" y="51.2" text-anchor="end">0.0510</text>
+<line class="refline" x1="66" y1="48.2" x2="570" y2="48.2"/>
+<text class="reflabel" x="580" y="52.2">best baseline</text>
+<line class="refline" x1="66" y1="249.8" x2="570" y2="249.8"/>
+<text class="reflabel" x="580" y="253.8">all 97 features</text>
+<polyline class="series s-model" points="66.0,135.3 111.8,190.2 157.6,221.4 203.5,226.1 249.3,229.9 295.1,232.8 340.9,235.6 386.7,237.5 432.5,238.4 478.4,240.3 524.2,241.3 570.0,243.2"/>
+<circle class="dot s-model" cx="66.0" cy="135.3" r="4.5"/>
+<text class="tick" x="66.0" y="298" text-anchor="middle">1</text>
+<circle class="dot s-model" cx="111.8" cy="190.2" r="4.5"/>
+<text class="tick" x="111.8" y="298" text-anchor="middle">2</text>
+<circle class="dot s-model" cx="157.6" cy="221.4" r="4.5"/>
+<text class="tick" x="157.6" y="298" text-anchor="middle">3</text>
+<circle class="dot s-model" cx="203.5" cy="226.1" r="4.5"/>
+<text class="tick" x="203.5" y="298" text-anchor="middle">4</text>
+<circle class="dot s-model" cx="249.3" cy="229.9" r="4.5"/>
+<text class="tick" x="249.3" y="298" text-anchor="middle">5</text>
+<circle class="dot s-model" cx="295.1" cy="232.8" r="4.5"/>
+<text class="tick" x="295.1" y="298" text-anchor="middle">6</text>
+<circle class="dot s-model" cx="340.9" cy="235.6" r="4.5"/>
+<text class="tick" x="340.9" y="298" text-anchor="middle">7</text>
+<circle class="dot s-model" cx="386.7" cy="237.5" r="4.5"/>
+<text class="tick" x="386.7" y="298" text-anchor="middle">8</text>
+<circle class="dot s-model" cx="432.5" cy="238.4" r="4.5"/>
+<text class="tick" x="432.5" y="298" text-anchor="middle">9</text>
+<circle class="dot s-model" cx="478.4" cy="240.3" r="4.5"/>
+<text class="tick" x="478.4" y="298" text-anchor="middle">10</text>
+<circle class="dot s-model" cx="524.2" cy="241.3" r="4.5"/>
+<text class="tick" x="524.2" y="298" text-anchor="middle">11</text>
+<circle class="dot s-model" cx="570.0" cy="243.2" r="4.5"/>
+<text class="tick" x="570.0" y="298" text-anchor="middle">12</text>
+<text class="pointlabel" x="66.0" y="119.3" text-anchor="start">usg_pct_ewm10</text>
+<text class="pointlabel" x="167.6" y="205.4" text-anchor="start">min_r10</text>
+<text class="pointlabel" x="570.0" y="227.2" text-anchor="end">usg_pct_ewm3</text>
+<text class="axistitle" x="318" y="322" text-anchor="middle">features in the model</text>
+</svg></div>
+    <figcaption>Greedy forward selection on 2025-26. Three features recover 86% of the gap
+    between the best baseline and the full 97-feature model; twelve recover 97%
+    (0.04893 against 0.04886). The other 85 features are almost entirely
+    redundant &mdash; if this goes to production, the small model is the one to ship.</figcaption>
+  </figure>
+  <div class="tablewrap"><table><thead><tr><th>n</th><th>added</th><th>mae</th><th>r2</th></tr></thead><tbody><tr><td class="num">1</td><td>usg_pct_ewm10</td><td class="num">0.05007</td><td class="num">0.34618</td></tr><tr><td class="num">2</td><td>expected_load_share</td><td class="num">0.04949</td><td class="num">0.35712</td></tr><tr><td class="num">3</td><td>min_r10</td><td class="num">0.04916</td><td class="num">0.36474</td></tr><tr><td class="num">4</td><td>usg_pct_season</td><td class="num">0.04911</td><td class="num">0.36570</td></tr><tr><td class="num">5</td><td>fga_sd20</td><td class="num">0.04907</td><td class="num">0.36615</td></tr><tr><td class="num">6</td><td>usg_pct_sd20</td><td class="num">0.04904</td><td class="num">0.36645</td></tr><tr><td class="num">7</td><td>tov_pct_r10</td><td class="num">0.04901</td><td class="num">0.36693</td></tr><tr><td class="num">8</td><td>ast_pct_season</td><td class="num">0.04899</td><td class="num">0.36748</td></tr><tr><td class="num">9</td><td>ts_pct_career</td><td class="num">0.04898</td><td class="num">0.36766</td></tr><tr><td class="num">10</td><td>fta_r3</td><td class="num">0.04896</td><td class="num">0.36798</td></tr><tr><td class="num">11</td><td>usg_pct_r10</td><td class="num">0.04895</td><td class="num">0.36829</td></tr><tr><td class="num">12</td><td>usg_pct_ewm3</td><td class="num">0.04893</td><td class="num">0.36845</td></tr></tbody></table></div>
+</section>
+
+<section>
+  <h2>Injury: real, but not the key variable</h2>
+  <p class="sectionnote">Each encoding added on its own to the same history features. Ridge, mean over folds.</p>
+  <div class="tablewrap"><table><thead><tr><th>encoding</th><th>n features</th><th>mae</th><th>r2</th></tr></thead><tbody><tr><td>all absence + rotation</td><td class="num">97</td><td class="num">0.04917</td><td class="num">0.36434</td></tr><tr><td>all absence</td><td class="num">89</td><td class="num">0.04950</td><td class="num">0.35847</td></tr><tr><td>share only</td><td class="num">80</td><td class="num">0.04969</td><td class="num">0.35600</td></tr><tr><td>load only</td><td class="num">80</td><td class="num">0.04969</td><td class="num">0.35590</td></tr><tr><td>count only</td><td class="num">80</td><td class="num">0.04977</td><td class="num">0.35364</td></tr><tr><td>own status only</td><td class="num">80</td><td class="num">0.04978</td><td class="num">0.35299</td></tr><tr><td>none</td><td class="num">79</td><td class="num">0.04978</td><td class="num">0.35298</td></tr></tbody></table></div>
+  <p><strong>The player's own injury status is worth nothing</strong> &mdash;
+  0.04978 against
+  0.04978 for no injury features at all. On
+  reflection that is what should happen: the target only exists for games the player actually played, so
+  conditioning on their having played already absorbs almost everything their status could say. Own status
+  would matter for predicting <em>whether</em> someone plays, which is a different question.</p>
+  <p><strong>Teammate absence matters mainly through rotation position, not through volume.</strong>
+  Knowing how much usage was vacated is worth about 0.0003 MAE; knowing where that pushes the player in the
+  healthy rotation is worth about as much again, the single largest structural contribution. What counts is
+  not how much load went missing but how far up the pecking order it moves this player.</p>
+</section>
+
+<section>
+  <h2>What failed</h2>
+  <h3><span class="verdict drop">dropped</span> Role clustering</h3>
+  <p>K-means over prior-game rate stats with usage excluded, refitted each season on earlier seasons only,
+  feeding role-aware vacated load. It changed MAE by at most 0.00002 in either direction. The project rule
+  is that clusters are kept only on a demonstrated gain, so it is out of the recommended set.</p>
+  <h3><span class="verdict drop">dropped</span> Pairwise with/without absorption</h3>
+  <p>Shrunk estimates of how each player's usage shifts when each specific teammate is out. The individual
+  estimates look sensible &mdash; the strongest pair is +7.7 usage points over 42 games-without &mdash; but
+  once rotation share is in the model the pairwise detail is redundant. Teammate-specific synergy, measured
+  this way, does not forecast usage.</p>
+  <h3><span class="verdict drop">dropped</span> Neural networks</h3>
+  <p>The MLP with player embeddings and the GRU over each player's last ten games were the two worst models
+  tested, behind every classical algorithm. The sequence model was worst of all, which says the ordering of
+  recent games carries nothing beyond their weighted average.</p>
+</section>
+
+<section>
+  <h2>Processing choices</h2>
+  <h3>Window length hardly matters</h3>
+  <div class="tablewrap"><table><thead><tr><th>variant</th><th>n features</th><th>mae</th><th>r2</th></tr></thead><tbody><tr><td>long (5,10,20,40)</td><td class="num">105</td><td class="num">0.04914</td><td class="num">0.36482</td></tr><tr><td>ewma only</td><td class="num">89</td><td class="num">0.04915</td><td class="num">0.36443</td></tr><tr><td>default (3,5,10,20)</td><td class="num">97</td><td class="num">0.04917</td><td class="num">0.36434</td></tr><tr><td>medium (3,5,10)</td><td class="num">89</td><td class="num">0.04917</td><td class="num">0.36410</td></tr><tr><td>short (3,5)</td><td class="num">73</td><td class="num">0.04931</td><td class="num">0.36135</td></tr></tbody></table></div>
+  <p>A 0.0002 spread across every variant tried. EWMA alone does as well as a full set of rolling windows.
+  Short windows are measurably the worst &mdash; a three-game mean is too noisy, which also shows in the
+  baselines, where last-3 is the weakest of the lot.</p>
+
+  <h3>Most of the error lives in low-minute players</h3>
+  <div class="tablewrap"><table><thead><tr><th>treatment</th><th>n rows</th><th>mae</th><th>r2</th></tr></thead><tbody><tr><td>all played rows</td><td class="num">128652</td><td class="num">0.04917</td><td class="num">0.36434</td></tr><tr><td>min &gt;= 5</td><td class="num">118977</td><td class="num">0.04339</td><td class="num">0.46531</td></tr><tr><td>min &gt;= 10</td><td class="num">109745</td><td class="num">0.04111</td><td class="num">0.50626</td></tr><tr><td>usage winsorised 1-99%</td><td class="num">128652</td><td class="num">0.04844</td><td class="num">0.38467</td></tr><tr><td>&gt;= 5 prior games</td><td class="num">114899</td><td class="num">0.04760</td><td class="num">0.39048</td></tr></tbody></table></div>
+  <p>Restricting to games of ten minutes or more lifts R&sup2; from 0.36 to 0.51. This is <em>not</em> an
+  improvement: it is a different, easier set of rows, and the MAEs are not comparable across them. But it
+  locates the problem. Garbage-time and cameo appearances have erratic usage and are close to
+  unpredictable, so a production model would likely be scoped to the rotation rather than trained to chase
+  them.</p>
+</section>
+
+<section>
+  <h2>Full model comparison</h2>
+  <p class="sectionnote">32 rows across both folds, as generated.</p>
+  <div class="tablewrap"><table><thead><tr><th>fold</th><th>kind</th><th>model</th><th>MAE</th><th>RMSE</th><th>R2</th><th>n</th></tr></thead><tbody><tr><td>2024-25</td><td>model</td><td>ridge</td><td class="num">0.04945</td><td class="num">0.06878</td><td class="num">0.3565</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>elasticnet</td><td class="num">0.04948</td><td class="num">0.06882</td><td class="num">0.3557</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>random_forest</td><td class="num">0.04957</td><td class="num">0.06878</td><td class="num">0.3565</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>catboost</td><td class="num">0.04961</td><td class="num">0.06884</td><td class="num">0.3552</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>xgboost</td><td class="num">0.04962</td><td class="num">0.06893</td><td class="num">0.3537</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>extra_trees</td><td class="num">0.04965</td><td class="num">0.06882</td><td class="num">0.3558</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>lightgbm</td><td class="num">0.04965</td><td class="num">0.06887</td><td class="num">0.3548</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>mlp_embeddings</td><td class="num">0.05035</td><td class="num">0.06957</td><td class="num">0.3416</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>model</td><td>gru_sequence</td><td class="num">0.05086</td><td class="num">0.07014</td><td class="num">0.3308</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>baseline</td><td>ewm3</td><td class="num">0.05173</td><td class="num">0.07206</td><td class="num">0.2936</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>baseline</td><td>last10_mean</td><td class="num">0.05184</td><td class="num">0.07202</td><td class="num">0.2944</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>baseline</td><td>season_mean</td><td class="num">0.05214</td><td class="num">0.07300</td><td class="num">0.2750</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>baseline</td><td>last5_mean</td><td class="num">0.05359</td><td class="num">0.07443</td><td class="num">0.2464</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>baseline</td><td>career_mean</td><td class="num">0.05462</td><td class="num">0.07453</td><td class="num">0.2444</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>baseline</td><td>last3_mean</td><td class="num">0.05605</td><td class="num">0.07776</td><td class="num">0.1774</td><td class="num">25025</td></tr><tr><td>2024-25</td><td>baseline</td><td>global_mean</td><td class="num">0.06629</td><td class="num">0.08574</td><td class="num">-0.0001</td><td class="num">25025</td></tr><tr><td>2025-26</td><td>model</td><td>elasticnet</td><td class="num">0.04886</td><td class="num">0.06672</td><td class="num">0.3718</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>ridge</td><td class="num">0.04888</td><td class="num">0.06670</td><td class="num">0.3722</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>catboost</td><td class="num">0.04892</td><td class="num">0.06672</td><td class="num">0.3718</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>xgboost</td><td class="num">0.04892</td><td class="num">0.06674</td><td class="num">0.3715</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>random_forest</td><td class="num">0.04894</td><td class="num">0.06678</td><td class="num">0.3707</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>lightgbm</td><td class="num">0.04900</td><td class="num">0.06683</td><td class="num">0.3698</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>extra_trees</td><td class="num">0.04904</td><td class="num">0.06682</td><td class="num">0.3700</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>mlp_embeddings</td><td class="num">0.04933</td><td class="num">0.06741</td><td class="num">0.3589</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>model</td><td>gru_sequence</td><td class="num">0.04957</td><td class="num">0.06753</td><td class="num">0.3566</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>baseline</td><td>ewm3</td><td class="num">0.05099</td><td class="num">0.06954</td><td class="num">0.3177</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>baseline</td><td>last10_mean</td><td class="num">0.05111</td><td class="num">0.06951</td><td class="num">0.3182</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>baseline</td><td>season_mean</td><td class="num">0.05141</td><td class="num">0.07020</td><td class="num">0.3046</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>baseline</td><td>last5_mean</td><td class="num">0.05298</td><td class="num">0.07193</td><td class="num">0.2699</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>baseline</td><td>career_mean</td><td class="num">0.05398</td><td class="num">0.07218</td><td class="num">0.2648</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>baseline</td><td>last3_mean</td><td class="num">0.05537</td><td class="num">0.07524</td><td class="num">0.2013</td><td class="num">26065</td></tr><tr><td>2025-26</td><td>baseline</td><td>global_mean</td><td class="num">0.06561</td><td class="num">0.08418</td><td class="num">-0.0000</td><td class="num">26065</td></tr></tbody></table></div>
+</section>
+
+<section>
+  <h2>Caveats</h2>
+  <ul class="notes">
+    <li><strong>Injury data starts 2021-10-19</strong>, so every injury-aware result uses five seasons, not
+    the seventeen the box scores cover.</li>
+    <li><strong>10,160 of 64,246 injury rows are dropped</strong> because they do not match a game for that
+    team on that date. The NBA publishes the report the evening before, so some rows carry the report date
+    rather than the game date. This understates absences; it cannot leak. Recovering them is the first thing
+    to try if the absence features are worth pushing further.</li>
+    <li><strong>Two folds only</strong> for the injury-era results. The differences between the top models
+    are smaller than the gap between folds, so read the ranking as "all equivalent" rather than as a winner.</li>
+    <li>Usage is modelled <strong>conditional on the player appearing</strong>. Predicting usage for someone
+    who might be ruled out needs an availability model first.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Generated from <code>RESULTS.md</code>, <code>RESULTS_ablation.md</code> and
+  <code>RESULTS_processing.md</code>. Rebuild the numbers with
+  <code>uv run python -m nba_usage.run_final</code>,
+  <code>uv run python -m nba_usage.run_experiments</code> and
+  <code>uv run python -m nba_usage.run_processing</code>, then this page with
+  <code>uv run python -m nba_usage.make_report</code>.</p>
+</footer>
+</div>
+
+</body>
+</html>

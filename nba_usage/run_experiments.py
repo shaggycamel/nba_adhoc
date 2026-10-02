@@ -63,6 +63,23 @@ def main() -> None:
     with pl.Config(tbl_rows=60, float_precision=5):
         print(results.sort("fold", "mae"))
 
+    out = Path("RESULTS_ablation.md")
+    lines = [
+        "# Feature ablation",
+        "",
+        "Cumulative feature sets on the same expanding-window season folds.",
+        "",
+        "| fold | model | features | mae | rmse | r2 | n |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for r in results.sort(["fold", "mae"]).iter_rows(named=True):
+        lines.append(
+            f"| {r['fold']} | {r['model']} | {r['features']} | {r['mae']:.5f} | "
+            f"{r['rmse']:.5f} | {r['r2']:.5f} | {r['n']} |"
+        )
+    out.write_text("\n".join(lines) + "\n")
+    print(f"wrote {out}")
+
 
 if __name__ == "__main__":
     main()
