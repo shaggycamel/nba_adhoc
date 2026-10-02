@@ -1,0 +1,12 @@
+[project]
+name = "nba-adhoc"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "sports-hub",
+]
+
+[tool.uv.sources]
+sports-hub = { git = "https://github.com/shaggycamel/sports-hub.git" }
