@@ -178,6 +178,7 @@ def heatmap(
     cell: int = 34,
     label_w: int = 190,
     value_dp: int = 2,
+    cell_dp: int | None = None,
     unit: str = "",
 ) -> str:
     """Cells on a diverging (signed) or sequential (magnitude) ramp.
@@ -189,6 +190,8 @@ def heatmap(
     # Rotated headers extend up and to the right, so both paddings scale with
     # the longest label or the last column clips off the edge.
     reach = 0.707 * 6.0 * max((len(c) for c in col_labels), default=0)
+    if cell_dp is None:
+        cell_dp = 1 if diverging else value_dp
     top = int(24 + reach)
     grid_h = len(row_labels) * cell
     legend_y = top + grid_h + 26
@@ -240,7 +243,7 @@ def heatmap(
                 out.append(
                     f'<text x="{x + cell / 2:.1f}" y="{y + cell / 2 + 4:.1f}" '
                     f'class="cellval" text-anchor="middle">'
-                    f'{fmt(v, 1) if diverging else fmt(v, 0)}</text>'
+                    f'{fmt(v, cell_dp)}</text>'
                 )
 
     steps = 9

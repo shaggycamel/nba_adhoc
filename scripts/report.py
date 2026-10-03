@@ -49,26 +49,37 @@ feat_cols = [c for c in prof.columns if c.startswith("r_")]
 
 
 def name_role(row: dict) -> str:
-    z = {c: row[c] for c in feat_cols}
-    big = z.get("r_blk_per_min", 0) + z.get("r_oreb_pct", 0)
-    out = z.get("r_fg3a_share", 0)
-    cre = z.get("r_ast_pct", 0) + z.get("r_ast_per_min", 0)
-    vol = z.get("r_fga_per_min", 0)
-    mins = z.get("r_min", 0)
-    if big > 1.2 and out < -0.5:
-        return "Interior big"
-    if big > 0.6 and out > 0.3:
-        return "Stretch big"
-    if cre > 1.4:
+    """Name a role from its own z-score signature, by rule.
+
+    The order matters: the most specific signatures are tested first. These
+    thresholds were set against the fitted profiles and are the one piece of
+    interpretation in the pipeline -- every number elsewhere is computed.
+    """
+    z = lambda c: row.get(c, 0.0)
+    oreb, blk, three = z("r_oreb_pct"), z("r_blk_per_min"), z("r_fg3a_share")
+    ast, astr = z("r_ast_pct"), z("r_ast_ratio")
+    mins, start, fga = z("r_min"), z("r_start_rate"), z("r_fga_per_min")
+
+    if oreb > 1.0 and three < -1.0:
+        return "Rim-running center"
+    if ast > 1.0 and mins > 0.8 and fga > 0.5:
         return "Primary creator"
-    if cre > 0.5 and vol > 0.2:
-        return "Secondary creator"
-    if out > 0.8 and cre < 0.3:
-        return "Off-ball shooter"
-    if vol > 0.6:
-        return "Volume scorer"
-    if mins < -0.6:
-        return "Low-minute reserve"
+    if ast > 1.0:
+        return "Playmaking guard"
+    if oreb > 0.4 and blk > 0.4 and ast < -0.5:
+        return "Interior finisher"
+    if mins < -1.0:
+        return "Deep reserve"
+    if start > 0.8:
+        return "Starting big" if ast < 0 else "Starting wing"
+    if three > 0.6 and start < -0.5:
+        return "Bench shooter"
+    if three > 0.6:
+        return "Floor spacer"
+    if astr > 0.6 and fga < -0.4:
+        return "Low-usage connector"
+    if start < -0.8:
+        return "Bench wing"
     return "Connective wing"
 
 
@@ -96,21 +107,24 @@ def section(title: str, body: str, sub: str = "") -> None:
 
 
 # --- Headline -------------------------------------------------------------
+_stab = pl.read_parquet(ART / "stability.parquet")
+stab_min, stab_max = _stab["ari"].min(), _stab["ari"].max()
 usage = pl.read_parquet(ART / "usage_models.parquet")
 best_base = usage.filter(pl.col("model").str.starts_with("baseline")).sort("mae")
 best_model = usage.filter(~pl.col("model").str.starts_with("baseline")).sort("mae")
 bb, bm = best_base.row(0, named=True), best_model.row(0, named=True)
 
-with_roles = usage.filter(pl.col("model").str.contains("soft roles")).sort("mae")
-without_roles = usage.filter(
-    pl.col("model").str.contains("usage history only")
-    | pl.col("model").str.contains("usage history \\+ role features$")
+no_role = usage.filter(pl.col("model").str.contains("usage history only")).sort("mae")
+any_role = usage.filter(
+    pl.col("model").str.contains("role")
+    & ~pl.col("model").str.starts_with("baseline")
+    & ~pl.col("model").str.contains("role features only")
 ).sort("mae")
-delta_pct = (
-    (without_roles["mae"][0] - with_roles["mae"][0]) / without_roles["mae"][0] * 100
-    if with_roles.height and without_roles.height
-    else 0.0
-)
+base_mae = no_role["mae"][0]
+role_mae = any_role["mae"][0]
+delta_pct = (base_mae - role_mae) / base_mae * 100
+best_baseline_mae = best_base["mae"][0]
+vs_baseline_pct = (best_baseline_mae - role_mae) / best_baseline_mae * 100
 
 hero = f"""
 <div class="tiles">
@@ -120,10 +134,36 @@ hero = f"""
     <div class="tile-n">{M['players']:,} players, {M['date_min']} to {M['date_max']}</div></div>
   <div class="tile"><div class="tile-k">Best MAE on usage</div><div class="tile-v">{bm['mae']:.4f}</div>
     <div class="tile-n">vs {bb['mae']:.4f} for the best naive baseline</div></div>
-  <div class="tile {'good' if delta_pct > 0.5 else 'flat'}"><div class="tile-k">Gain from adding roles</div>
+  <div class="tile {'good' if delta_pct > 1.0 else 'flat'}"><div class="tile-k">Gain from adding roles</div>
     <div class="tile-v">{delta_pct:+.2f}%</div>
-    <div class="tile-n">MAE change when soft roles join the same model</div></div>
+    <div class="tile-n">MAE vs the same model on usage history alone &mdash; not a meaningful gain</div></div>
 </div>"""
+
+# --- 0. Verdict -----------------------------------------------------------
+section(
+    "Verdict, up front",
+    f"""<p><strong>The roles are real and legible; they do not help predict usage.</strong>
+    Those are two separate findings and they point different ways.</p>
+    <p>On the first: ten roles emerge, and they are recognisable without being told what to
+    look for. One is Mitchell Robinson, Steven Adams and Bismack Biyombo. Another is Duncan
+    Robinson, Sam Hauser and Aaron Nesmith. Another is Jokic, Doncic and Gilgeous-Alexander.
+    Nothing in the inputs knew about position, usage, or who these players are.</p>
+    <p>On the second: adding roles to a usage model moves MAE from
+    {base_mae:.5f} to {role_mae:.5f}, a change of <strong>{delta_pct:.2f}%</strong>. The project
+    brief says to keep clustering only if an ablation shows a gain. <strong>On that rule, for
+    this model, it does not.</strong> The reason is visible in the same table: a player's own
+    recent usage already carries nearly everything the roles would tell you. Role features
+    alone reach {usage.filter(pl.col('model').str.contains('role features only')).sort('mae')['mae'][0]:.5f},
+    about the same as the last-20-games baseline &mdash; they are a substitute for usage
+    history, not a complement to it.</p>
+    <p>That is not an argument against the roles. It is an argument that <em>next-game usage is
+    the wrong test</em> for them: usage is strongly autocorrelated, so any slow-moving player
+    descriptor will look redundant against it. The roles should be judged on the jobs position
+    is actually used for &mdash; describing lineups, matchups and depth charts &mdash; and on
+    whether they hold still. Section 5 is the honest check there, and it is the weaker result:
+    era-to-era agreement of {stab_min:.2f} to {stab_max:.2f} ARI is moderate, not solid.</p>""",
+    "What I would and would not claim from this.",
+)
 
 # --- 1. Why positions fail ------------------------------------------------
 spread = pl.read_parquet(ART / "position_spread.parquet")
@@ -273,7 +313,7 @@ mat = [[None if a == b else next(
 stab_chart = heatmap(
     [e[:4] for e in eras], [e[:4] for e in eras], mat,
     label="Adjusted Rand Index between models fitted on different eras",
-    diverging=False, value_dp=3, label_w=120,
+    diverging=False, value_dp=3, cell_dp=2, label_w=120, cell=46,
 )
 stab_table = table_view(
     ["Fitted before", "vs fitted before", "ARI on common rows"],
@@ -351,7 +391,7 @@ for p in positions:
 ct_chart = heatmap(
     positions, [rl(l).replace("&middot;", "·") for l in range(K)], ctm,
     label="Share of each listed position's player-games falling in each role",
-    diverging=False, value_dp=1, unit="%", label_w=150, cell=40,
+    diverging=False, value_dp=1, cell_dp=0, unit="%", label_w=150, cell=40,
 )
 section(
     "7. Roles against listed position",
@@ -404,23 +444,35 @@ section(
     {table_view(["Model", "MAE", "RMSE"],
                 [[r["model"], f"{r['mae']:.5f}", f"{r['rmse']:.5f}"] for r in u.iter_rows(named=True)],
                 "usage model comparison")}
-    <p>The comparison that answers the question is the pair that differs only by the role
-    columns: adding soft roles to the same feature set moves MAE by
-    <strong>{delta_pct:+.2f}%</strong>.</p>
+    <p>The comparison that answers the question is the pair differing only by role
+    information: {base_mae:.5f} without it, {role_mae:.5f} with it &mdash; a
+    <strong>{delta_pct:.2f}%</strong> improvement. That is far too small to call a gain. Every
+    model does beat every naive baseline (the best model is {vs_baseline_pct:.1f}% better than
+    the last-20-games mean), but that margin comes from the usage history, not from the roles.</p>
+    <p>Note the row for <em>role features only</em>: with no usage history at all, the role
+    features land within a whisker of the last-20 baseline. The roles do carry real information
+    about how much a player will shoot &mdash; it is simply information his own recent usage
+    already encodes.</p>
     {imp_html}""",
     "Time-based split, prior-game features only, baselines included.",
 )
 
 # --- 9. Softness ---------------------------------------------------------
 section(
-    "9. Why the assignment stays soft",
-    f"""<p>Mean assignment confidence is {M['mean_confidence']:.3f}, and
-    <strong>{M['frac_ambiguous'] * 100:.1f}%</strong> of player-games have a top responsibility
-    below 0.6 &mdash; genuinely split between two roles. That share is exactly what a hard label
-    would misrepresent, and it is the quantitative reason to carry responsibilities forward
-    rather than an integer id.</p>
-    <p>For downstream use, the recommended representation is the {K} responsibility columns plus
-    <code>role_entropy</code>. The <code>role_label</code> column exists for plots and prose.</p>""",
+    "9. How soft is the assignment, really?",
+    f"""<p>I expected the soft representation to be doing heavy lifting here. It is doing less
+    than I assumed, and the honest number is worth stating: mean assignment confidence is
+    {M['mean_confidence']:.3f}, and only <strong>{M['frac_ambiguous'] * 100:.1f}%</strong> of
+    player-games have a top responsibility below 0.6. Most player-games land firmly in one
+    role.</p>
+    <p>That weakens the argument for responsibilities over a hard label &mdash; though
+    {M['frac_ambiguous'] * 100:.1f}% of {M['design_rows']:,} is still roughly
+    {int(M['frac_ambiguous'] * M['design_rows']):,} player-games where an integer id would
+    assert something the model does not believe, and those will concentrate in exactly the
+    hybrid players position labels already handle worst. The recommendation stands, but on
+    narrower grounds than I would have claimed before measuring it: carry the
+    {K} responsibility columns plus <code>role_entropy</code>, and treat
+    <code>role_label</code> as a display convenience.</p>""",
 )
 
 # --- 10. Limits ----------------------------------------------------------
