@@ -1,6 +1,8 @@
 [project]
 name = "nba-adhoc"
 version = "0.1.0"
+description = "Ad hoc NBA data analysis: predicting player usage"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
@@ -11,16 +13,12 @@ dependencies = [
 ]
 
 [dependency-groups]
+# `sports-hub` is only needed by data/gen.py, which re-dumps the parquet files
+# straight from postgres. It can't run in a cloud session (SQL port blocked), so
+# it's left out of the lock; add it back here with the source below when needed.
 export = [
     "psycopg[binary]>=3.3.6",
-]
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "sports-hub",
 ]
 
 [tool.uv.sources]
 sports-hub = { git = "https://github.com/shaggycamel/sports-hub.git" }
-
