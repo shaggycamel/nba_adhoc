@@ -132,3 +132,41 @@ def design_matrix(
         .drop_nulls(names)
     )
     return out, names
+
+
+# ---------------------------------------------------------------------------
+# Usage history. These are baselines for the downstream model and legitimate
+# inputs to it, but they must never enter the clustering features: a role is
+# what a player does, and usage is the thing we are trying to predict.
+# ---------------------------------------------------------------------------
+
+USAGE_HISTORY: tuple[str, ...] = (
+    "usg_last5",
+    "usg_last20",
+    "usg_season_to_date",
+    "min_last5",
+)
+
+
+def usage_history(per_game_df: pl.DataFrame) -> pl.DataFrame:
+    """Prior-game usage and minutes, per player. All shift(1): never self-aware."""
+    df = per_game_df.sort(["player_id", "game_date", "game_id"])
+    return df.with_columns(
+        usg_last5=pl.col("usg_pct")
+        .shift(1)
+        .rolling_mean(window_size=5, min_samples=2)
+        .over("player_id"),
+        usg_last20=pl.col("usg_pct")
+        .shift(1)
+        .rolling_mean(window_size=20, min_samples=5)
+        .over("player_id"),
+        usg_season_to_date=pl.col("usg_pct")
+        .shift(1)
+        .cum_sum()
+        .over(["player_id", "season"])
+        / pl.col("usg_pct").shift(1).cum_count().over(["player_id", "season"]),
+        min_last5=pl.col("min")
+        .shift(1)
+        .rolling_mean(window_size=5, min_samples=2)
+        .over("player_id"),
+    )
