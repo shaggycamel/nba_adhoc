@@ -17,3 +17,8 @@ credentials.ini
 
 # Local data exports
 data/
+
+# Generated analysis outputs
+artifacts/
+k_scores.parquet
+stability.parquet
