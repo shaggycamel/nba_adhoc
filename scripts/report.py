@@ -10,7 +10,8 @@ from pathlib import Path
 
 import polars as pl
 
-from scripts.svgkit import Box, esc, fmt, hbar_chart, heatmap, line_chart, table_view
+from scripts.svgkit import (Box, esc, fmt, grouped_hbar, hbar_chart, heatmap,
+                            line_chart, table_view)
 
 ART = Path("artifacts")
 OUT = Path("role_clustering_report.html")
@@ -140,28 +141,44 @@ hero = f"""
 </div>"""
 
 # --- 0. Verdict -----------------------------------------------------------
+_pts = pl.read_parquet(ART / "playtype_summary.parquet") if (ART / "playtype_summary.parquet").exists() else None
+if _pts is not None:
+    _rf = float(_pts.filter((pl.col("variant") == "full season") & (pl.col("features") == "roles (soft)"))["mean_cv_r2"][0])
+    _pf = float(_pts.filter((pl.col("variant") == "full season") & (pl.col("features") == "listed position"))["mean_cv_r2"][0])
+else:
+    _rf = _pf = float("nan")
+
 section(
     "Verdict, up front",
-    f"""<p><strong>The roles are real and legible; they do not help predict usage.</strong>
-    Those are two separate findings and they point different ways.</p>
-    <p>On the first: ten roles emerge, and they are recognisable without being told what to
-    look for. One is Mitchell Robinson, Steven Adams and Bismack Biyombo. Another is Duncan
-    Robinson, Sam Hauser and Aaron Nesmith. Another is Jokic, Doncic and Gilgeous-Alexander.
-    Nothing in the inputs knew about position, usage, or who these players are.</p>
-    <p>On the second: adding roles to a usage model moves MAE from
-    {base_mae:.5f} to {role_mae:.5f}, a change of <strong>{delta_pct:.2f}%</strong>. The project
-    brief says to keep clustering only if an ablation shows a gain. <strong>On that rule, for
-    this model, it does not.</strong> The reason is visible in the same table: a player's own
-    recent usage already carries nearly everything the roles would tell you. Role features
-    alone reach {usage.filter(pl.col('model').str.contains('role features only')).sort('mae')['mae'][0]:.5f},
-    about the same as the last-20-games baseline &mdash; they are a substitute for usage
-    history, not a complement to it.</p>
-    <p>That is not an argument against the roles. It is an argument that <em>next-game usage is
-    the wrong test</em> for them: usage is strongly autocorrelated, so any slow-moving player
-    descriptor will look redundant against it. The roles should be judged on the jobs position
-    is actually used for &mdash; describing lineups, matchups and depth charts &mdash; and on
-    whether they hold still. Section 5 is the honest check there, and it is the weaker result:
-    era-to-era agreement of {stab_min:.2f} to {stab_max:.2f} ARI is moderate, not solid.</p>""",
+    f"""<p><strong>The roles beat listed position at describing how players play, and they do
+    not improve a next-game usage model.</strong> Both are true, and the first is the one that
+    answers the original question.</p>
+    <p><strong>They describe the game better.</strong> Against play-type data the clustering
+    never saw &mdash; spot-up, isolation, pick-and-roll handling, cuts &mdash; the roles reach a
+    mean cross-validated R&sup2; of {_rf:.3f} against {_pf:.3f} for listed position, a
+    {_rf / _pf:.1f}&times; gap (section 9). On spot-ups and isolations, position's R&sup2; is
+    <em>negative</em>: knowing a player is a "Guard" predicts his spot-up rate worse than
+    guessing the league mean. The ten roles are also legible without being told what to look
+    for &mdash; one is Mitchell Robinson, Steven Adams and Biyombo; another is Duncan Robinson,
+    Sam Hauser and Nesmith; another is Jokic, Doncic and Gilgeous-Alexander. Nothing in the
+    inputs knew about position, usage, or player identity.</p>
+    <p><strong>They do not help predict usage.</strong> Adding roles to a usage model moves MAE
+    from {base_mae:.5f} to {role_mae:.5f} &mdash; {delta_pct:.2f}%. The project brief says to
+    keep clustering only if an ablation shows a gain; on that rule, for that model, it does not.
+    The reason is visible in the feature importances: a player's own recent usage already
+    carries nearly everything the roles would say. Role features alone reach
+    {usage.filter(pl.col('model').str.contains('role features only')).sort('mae')['mae'][0]:.5f},
+    about the last-20-games baseline &mdash; they substitute for usage history rather than add
+    to it.</p>
+    <p>So the honest reading is that next-game usage was the wrong test. Usage is strongly
+    autocorrelated, and any slow-moving descriptor will look redundant beside it. Judged on what
+    position is actually used for &mdash; describing how a player operates &mdash; the roles are
+    a clear improvement.</p>
+    <p><strong>The real caveat is stability.</strong> Refit on different eras, the taxonomy
+    agrees with itself at only {stab_min:.2f} to {stab_max:.2f} ARI. That is moderate. Before
+    these become the fixed vocabulary of future analysis, that number needs to be better
+    understood &mdash; it may reflect genuine change in how the game is played between 2014 and
+    2024, which would be a finding rather than a flaw, but this study cannot tell those apart.</p>""",
     "What I would and would not claim from this.",
 )
 
@@ -457,9 +474,90 @@ section(
     "Time-based split, prior-game features only, baselines included.",
 )
 
-# --- 9. Softness ---------------------------------------------------------
+# --- 9. Play-type validation ---------------------------------------------
+if (ART / "playtype_summary.parquet").exists():
+    pts = pl.read_parquet(ART / "playtype_summary.parquet")
+    ptv = pl.read_parquet(ART / "playtype_validation.parquet")
+    ptp = pl.read_parquet(ART / "playtype_role_profiles.parquet")
+    pt_targets = [c for c in ptp.columns if c.startswith("pt_share_")]
+
+    def g(variant: str, feats: str) -> float:
+        r = pts.filter((pl.col("variant") == variant) & (pl.col("features") == feats))
+        return float(r["mean_cv_r2"][0]) if r.height else float("nan")
+
+    roles_full, pos_full = g("full season", "roles (soft)"), g("full season", "listed position")
+    roles_early = g("first 20 games", "roles (soft)")
+    pos_early = g("first 20 games", "listed position")
+
+    per = (ptv.filter(pl.col("variant") == "full season")
+           .pivot(on="features", index="play_type", values="cv_r2"))
+    cats = [r["play_type"].replace("p_and_r_ball_handler", "P&R ball handler").replace("_", " ")
+            for r in per.iter_rows(named=True)]
+    pt_chart = grouped_hbar(
+        cats,
+        {"Roles": [max(r["roles (soft)"], 0.0) for r in per.iter_rows(named=True)],
+         "Listed position": [max(r["listed position"], 0.0) for r in per.iter_rows(named=True)]},
+        label="Cross-validated R-squared predicting play-type share",
+        value_label="CV R-squared",
+        colors={"Roles": "var(--series-1)", "Listed position": "var(--series-2)"},
+        dp=3, label_w=170,
+    )
+    prof_chart = heatmap(
+        [rl(r["modal_role"]).replace("&middot;", "·") for r in ptp.sort("modal_role").iter_rows(named=True)],
+        [c.removeprefix("pt_share_").replace("p_and_r_ball_handler", "P&R handler").replace("_", " ")
+         for c in pt_targets],
+        [[r[c] for c in pt_targets] for r in ptp.sort("modal_role").iter_rows(named=True)],
+        label="Play-type mix by role, as z-scores",
+        diverging=True, value_dp=2, label_w=215, cell=44, vmax=1.6,
+    )
+    section(
+        "9. The test the roles did not train for",
+        f"""<p>Everything above judges the roles on data related to what built them. This does
+        not. <code>statyx.play_types</code> records how each player's offence is actually
+        generated &mdash; spot-up, isolation, pick-and-roll handler, cut, hand-off, off-screen,
+        transition. None of it entered the features, the fit, or the choice of k. The clustering
+        has never seen it.</p>
+        <p>The question is the one that matters for replacing position: <strong>do the roles
+        predict that mix better than listed position does?</strong></p>
+        <div class="tiles">
+          <div class="tile good"><div class="tile-k">Roles</div><div class="tile-v">{roles_full:.3f}</div>
+            <div class="tile-n">mean cross-validated R&sup2; across {per.height} play types</div></div>
+          <div class="tile"><div class="tile-k">Listed position</div><div class="tile-v">{pos_full:.3f}</div>
+            <div class="tile-n">same folds, same targets</div></div>
+          <div class="tile good"><div class="tile-k">Ratio</div><div class="tile-v">{roles_full / pos_full:.1f}&times;</div>
+            <div class="tile-n">roles over position</div></div>
+        </div>
+        {pt_chart}
+        {table_view(["Play type", "Roles", "Listed position", "Roles + position"],
+                    [[r["play_type"], f"{r['roles (soft)']:.3f}", f"{r['listed position']:.3f}",
+                      f"{r['roles + position']:.3f}"] for r in per.iter_rows(named=True)],
+                    "CV R-squared by play type, full season")}
+        <p>Position is not merely weaker &mdash; on spot-ups, isolations and off-screen actions
+        its R&sup2; is <em>negative</em>, meaning knowing a player is a "Guard" predicts his
+        spot-up rate worse than guessing the league average. The roles reach
+        {per['roles (soft)'].max():.2f} on pick-and-roll ball handling.</p>
+        <p class="sub">Because <code>play_types</code> is a whole-season aggregate and the role
+        responsibilities average over that same season, the numbers above measure concurrent
+        validity rather than forecasting. Restricting roles to each player's <em>first 20 games</em>
+        removes most of that overlap: roles fall to {roles_early:.3f} and position to
+        {pos_early:.3f}, still a {roles_early / pos_early:.1f}&times; gap. The finding survives.</p>
+        <p>Reading the signatures below confirms it qualitatively: the rim-running centers live
+        on cuts, the playmaking guards on pick-and-roll handling, the floor spacers on spot-ups.
+        The clustering reconstructed how these players generate offence from nothing but their
+        box-score rates.</p>
+        {prof_chart}
+        <p class="sub"><strong>A sixth data defect, found here.</strong> Three play-type columns
+        &mdash; <code>p_and_r_roll_man</code>, <code>post_up</code> and <code>o_board</code>
+        &mdash; are identically zero for all 420 players in the dump. Roll man and post-up plainly
+        occur, so this is a collection gap upstream rather than a fact about the season; they are
+        excluded, leaving {per.height} of 10 play types. Players with fewer than 25 total
+        charted attempts are also excluded as too noisy, leaving 313 of 420.</p>""",
+        "Held-out in the strongest sense: this data was never available to the model.",
+    )
+
+# --- 10. Softness --------------------------------------------------------
 section(
-    "9. How soft is the assignment, really?",
+    "10. How soft is the assignment, really?",
     f"""<p>I expected the soft representation to be doing heavy lifting here. It is doing less
     than I assumed, and the honest number is worth stating: mean assignment confidence is
     {M['mean_confidence']:.3f}, and only <strong>{M['frac_ambiguous'] * 100:.1f}%</strong> of
@@ -477,7 +575,7 @@ section(
 
 # --- 10. Limits ----------------------------------------------------------
 section(
-    "10. Limits, and what I would not yet claim",
+    "11. Limits, and what I would not yet claim",
     """<ul class="method">
     <li><strong>The features are box-score shaped.</strong> Without tracking data over the full
       history, "role" here is a shot-and-activity diet. It cannot see screening, gravity, or

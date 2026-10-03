@@ -179,6 +179,7 @@ def heatmap(
     label_w: int = 190,
     value_dp: int = 2,
     cell_dp: int | None = None,
+    vmax: float | None = None,
     unit: str = "",
 ) -> str:
     """Cells on a diverging (signed) or sequential (magnitude) ramp.
@@ -203,7 +204,9 @@ def heatmap(
         f'aria-label="{esc(label)}" preserveAspectRatio="xMidYMid meet">'
     ]
     flat = [v for row in matrix for v in row if v is not None]
-    vmax = max(abs(min(flat)), abs(max(flat))) or 1
+    # A single extreme cell otherwise flattens every other cell to near-neutral,
+    # so the ramp saturates at `vmax` and outliers simply clip.
+    vmax = vmax or (max(abs(min(flat)), abs(max(flat))) or 1)
     smax = max(flat) or 1
 
     def colour(v: float) -> str:
@@ -266,3 +269,67 @@ def heatmap(
     )
     out.append("</svg>")
     return "".join(out)
+
+
+def grouped_hbar(
+    categories: list[str],
+    series: dict[str, list[float]],
+    *,
+    label: str,
+    value_label: str,
+    colors: dict[str, str],
+    dp: int = 3,
+    bar_h: int = 13,
+    gap: int = 2,
+    group_gap: int = 12,
+    width: int = 760,
+    label_w: int = 190,
+) -> str:
+    """Grouped horizontal bars: one label per category, one bar per series.
+
+    Bars within a group are separated by a 2px surface gap rather than a border,
+    and each is direct-labelled, so the comparison reads without a lookup.
+    """
+    names = list(series)
+    group_h = len(names) * bar_h + (len(names) - 1) * gap + group_gap
+    h = len(categories) * group_h + 10
+    box = Box(w=width, h=h, l=label_w, r=78, t=6, b=4)
+    vmax = max((max(v) for v in series.values()), default=1) * 1.04 or 1
+
+    out = [
+        f'<svg class="chart" viewBox="0 0 {box.w} {box.h}" role="img" '
+        f'style="max-width:{box.w}px" aria-label="{esc(label)}" '
+        f'preserveAspectRatio="xMidYMid meet">'
+    ]
+    for i, cat in enumerate(categories):
+        gy = box.t + i * group_h
+        block = len(names) * bar_h + (len(names) - 1) * gap
+        out.append(
+            f'<text x="{box.l - 10}" y="{gy + block / 2 + 4:.1f}" class="catlabel" '
+            f'text-anchor="end">{esc(cat)}</text>'
+        )
+        for j, nm in enumerate(names):
+            v = series[nm][i]
+            y = gy + j * (bar_h + gap)
+            bw = max(v / vmax * box.iw, 1.0)
+            out.append(
+                f'<rect x="{box.l}" y="{y}" width="{bw:.1f}" height="{bar_h}" rx="4" ry="4" '
+                f'fill="{colors[nm]}" class="hit" '
+                f'data-tip="{esc(cat)} &middot; {esc(nm)} &middot; {esc(value_label)} {fmt(v, dp)}">'
+                f'<title>{esc(cat)} / {esc(nm)}: {fmt(v, dp)}</title></rect>'
+            )
+            out.append(
+                f'<text x="{box.l + bw + 7:.1f}" y="{y + bar_h - 2:.1f}" '
+                f'class="vallabel">{fmt(v, dp)}</text>'
+            )
+    out.append(
+        f'<line x1="{box.l}" y1="{box.t}" x2="{box.l}" '
+        f'y2="{box.t + len(categories) * group_h - group_gap:.1f}" '
+        f'stroke="{AXIS}" stroke-width="1"/>'
+    )
+    out.append("</svg>")
+    chips = "".join(
+        f'<span class="chip"><i style="background:{colors[n]}"></i>{esc(n)}</span>'
+        for n in names
+    )
+    return f'<div class="legend">{chips}</div>' + "".join(out)
