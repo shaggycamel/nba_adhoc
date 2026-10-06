@@ -1,6 +1,8 @@
 [project]
 name = "nba-adhoc"
 version = "0.1.0"
+description = "Ad hoc NBA analysis: predicting player usage (usg_pct) before tip-off."
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
@@ -14,13 +16,3 @@ dependencies = [
 export = [
     "psycopg[binary]>=3.3.6",
 ]
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "sports-hub",
-]
-
-[tool.uv.sources]
-sports-hub = { git = "https://github.com/shaggycamel/sports-hub.git" }
-
