@@ -189,12 +189,6 @@ wheels = [
 ]
 
 [[package]]
-name = "atomicwrites"
-version = "1.4.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/87/c6/53da25344e3e3a9c01095a89f16dbcda021c609ddb42dd6d7c0528236fb2/atomicwrites-1.4.1.tar.gz", hash = "sha256:81b2c9071a49367a7f770170e5eec8cb66567cfbbc8c73d20ce5ca4a8d71cf11", size = 14227, upload-time = "2022-07-08T18:31:40.459Z" }
-
-[[package]]
 name = "attrs"
 version = "26.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1104,6 +1098,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
 export = [
     { name = "psycopg", extra = ["binary"] },
     { name = "sports-hub" },
@@ -1119,6 +1116,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8.3" }]
 export = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
     { name = "sports-hub", git = "https://github.com/shaggycamel/sports-hub.git" },
@@ -1299,11 +1297,11 @@ wheels = [
 
 [[package]]
 name = "pluggy"
-version = "0.13.1"
+version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/04/7a8542bed4b16a65c2714bf76cf5a0b026157da7f75e87cc88774aa10b14/pluggy-0.13.1.tar.gz", hash = "sha256:15b2acde666561e1298d71b523007ed7364de07029219b604cf808bfa1c765b0", size = 57962, upload-time = "2019-11-21T20:42:37.118Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f9/e2/3e91f31a7d2b083fe6ef3fa267035b518369d9511ffab804f839851d2779/pluggy-1.6.0.tar.gz", hash = "sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3", size = 69412, upload-time = "2025-05-15T12:30:07.975Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/28/85c7aa31b80d150b772fbe4a229487bc6644da9ccb7e427dd8cc60cb8a62/pluggy-0.13.1-py2.py3-none-any.whl", hash = "sha256:966c145cd83c96502c3c3868f50408687b38434af77734af1e9ca461a4081d2d", size = 18077, upload-time = "2019-11-21T20:42:34.957Z" },
+    { url = "https://files.pythonhosted.org/packages/54/20/4d324d65cc6d9205fabedc306948156824eb9f0ee1633355a8f7ec5c66bf/pluggy-1.6.0-py3-none-any.whl", hash = "sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746", size = 20538, upload-time = "2025-05-15T12:30:06.134Z" },
 ]
 
 [[package]]
@@ -1527,15 +1525,6 @@ wheels = [
 ]
 
 [[package]]
-name = "py"
-version = "1.11.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/98/ff/fec109ceb715d2a6b4c4a85a61af3b40c723a961e8828319fbcb15b868dc/py-1.11.0.tar.gz", hash = "sha256:51c75c4126074b472f746a24399ad32f6053d1b34b68d2fa41e558e6f4a98719", size = 207796, upload-time = "2021-11-04T17:17:01.377Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f6/f0/10642828a8dfb741e5f3fbaac830550a518a775c7fff6f04a007259b0548/py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378", size = 98708, upload-time = "2021-11-04T17:17:00.152Z" },
-]
-
-[[package]]
 name = "pyaml"
 version = "26.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1593,6 +1582,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pygments"
+version = "2.21.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/2e/ced460408999b33da6b31b0021b0f37d329e202d4169aeb164493778f25b/pygments-2.21.0.tar.gz", hash = "sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c", size = 5005329, upload-time = "2026-08-17T08:02:48.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/71/46/17f022dd3e953bf20a04a028a21ec746d942f8d2af30fa0f124fa0e6a684/pygments-2.21.0-py3-none-any.whl", hash = "sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9", size = 1250147, upload-time = "2026-08-17T08:02:44.912Z" },
+]
+
+[[package]]
 name = "pyjanitor"
 version = "0.30.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1618,21 +1616,18 @@ wheels = [
 
 [[package]]
 name = "pytest"
-version = "6.1.2"
+version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "atomicwrites", marker = "sys_platform == 'win32'" },
-    { name = "attrs" },
     { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
-    { name = "py" },
-    { name = "toml" },
+    { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d4/df/bd7c25c4fe809a17315b3fc9878edf48d31dde7b431b6836848b063c0428/pytest-6.1.2.tar.gz", hash = "sha256:c0a7e94a8cdbc5422a51ccdad8e6f1024795939cc89159a0ae7f0b316ad3823e", size = 1084943, upload-time = "2020-10-28T17:20:53.521Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313", size = 1636369, upload-time = "2026-06-19T10:58:32.857Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/ee/53945d50284906adb1e613fabf2e1b8b25926e8676854bb25b93564c0ce7/pytest-6.1.2-py3-none-any.whl", hash = "sha256:4288fed0d9153d9646bfcdf0c0428197dba1ecb27a33bb6e031d002fa88653fe", size = 272430, upload-time = "2020-10-28T17:20:51.926Z" },
+    { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
 ]
 
 [[package]]
@@ -1645,15 +1640,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
-]
-
-[[package]]
-name = "python-dotenv"
-version = "0.14.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/33/3d/a0c00002bae69321f5b87ea7ed123ddf1933e09d3ff658d277889698ee59/python-dotenv-0.14.0.tar.gz", hash = "sha256:8c10c99a1b25d9a68058a1ad6f90381a62ba68230ca93966882a4dbc3bc9c33d", size = 29029, upload-time = "2020-07-03T14:34:05.642Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/16/28d434b28c5be29a6af8fd0e3a2bda3bd30500ef0cd17bc79f7a6793a8d4/python_dotenv-0.14.0-py2.py3-none-any.whl", hash = "sha256:c10863aee750ad720f4f43436565e4c1698798d763b63234fb5021b6c616e423", size = 17837, upload-time = "2020-07-03T14:34:04.436Z" },
 ]
 
 [[package]]
@@ -1982,15 +1968,6 @@ wheels = [
 ]
 
 [[package]]
-name = "toml"
-version = "0.10.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
-]
-
-[[package]]
 name = "typing-extensions"
 version = "4.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2054,13 +2031,13 @@ wheels = [
 
 [[package]]
 name = "yahoo-oauth"
-version = "1.1"
+version = "1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyaml" },
     { name = "rauth" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3b/ef/8a13e59badc8987a92f5184f34a2f7177947d1c75209e31558d12327dd87/yahoo_oauth-1.1.tar.gz", hash = "sha256:8dcdd6de9e6629eae3a6823ab78501b7679fea1bf3fb6a561139279616188a50", size = 7153, upload-time = "2020-10-01T14:56:56.665Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/31/6b229c9fc556b426856437535b3ae93776a96b799ba0f3cf1a482587fc41/yahoo_oauth-1.0.tar.gz", hash = "sha256:fb8682140213d847aece6b55eb4ac5968671ca73f23dec831c7b0d389ee041aa", size = 7088, upload-time = "2020-05-24T14:34:11.53Z" }
 
 [[package]]
 name = "yarl"
@@ -2180,18 +2157,16 @@ wheels = [
 
 [[package]]
 name = "yfpy"
-version = "3.3.1"
+version = "3.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pytest" },
-    { name = "python-dotenv" },
     { name = "requests" },
     { name = "stringcase" },
     { name = "yahoo-oauth" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4f/91/c5cff61fdc96776065ad3ea2be4946f059a9d42de34a4bf5463acc686f9a/yfpy-3.3.1.tar.gz", hash = "sha256:ec82b183c0ecf20d91d830e9764822bedbc09e011d5765d40eb8ddb67bca37bd", size = 32186, upload-time = "2020-10-02T15:28:07.434Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/6e/72d5da7d3c6aa1ab070878eb56ca77278ab4f0e98fe81ab2084534723372/yfpy-3.1.2.tar.gz", hash = "sha256:12e99e7719be8ab46e31229c477bdfaa2a70036f4db00988ac4feb31afacb2cd", size = 29606, upload-time = "2020-09-10T06:52:21.657Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/b4/3adf972f13c904688e44590c2dbc9db18e21cf23218efcf0d7e99662c331/yfpy-3.3.1-py3-none-any.whl", hash = "sha256:45be6bbe6972c6f36cd700694eb035658eaa2fef7c62aedc1e2a96ee34c72047", size = 40970, upload-time = "2020-10-02T15:28:06.273Z" },
+    { url = "https://files.pythonhosted.org/packages/84/ae/1e0ddb265ac2529ae0a3fdca7a50eb620e6f1c590f639819cd88da509b3c/yfpy-3.1.2-py3-none-any.whl", hash = "sha256:3e7017c967b53e6258bd4989a4c280a9243b3c9f2d556e72f9187c779ca36992", size = 40185, upload-time = "2020-09-10T06:52:20.739Z" },
 ]
 
 [[package]]
