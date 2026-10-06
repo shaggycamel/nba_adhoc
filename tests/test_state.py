@@ -49,7 +49,7 @@ def _synthetic(minutes: list[float | None], start: date = date(2024, 1, 1)) -> p
             "started": [False] * n,
             "with_team": [m is not None for m in minutes],
             "presence": ["PLAYED" if m else "ABSENT_UNKNOWN" for m in minutes],
-            "absence_run": [0] * n,
+            "absence_run_full": [0] * n,
         }
     )
 
@@ -250,3 +250,42 @@ def test_panel_has_identity_on_absent_rows(panel: pl.DataFrame):
     absent = panel.filter(~pl.col("with_team"))
     assert absent["player_name"].null_count() == 0
     assert absent["team_abbreviation"].null_count() == 0
+
+
+def test_prior_absence_streak_looks_only_backwards(state: pl.DataFrame):
+    """`absent_streak_prior` must not know how long an absence will last.
+
+    Its forward-looking twin `absence_run_full` is a diagnostic, not a feature;
+    this pins the difference so the two cannot be confused.
+    """
+    out = add_pre_game_state(_synthetic([30.0, None, None, None, 20.0]), rate_stats=())
+    assert out["absent_streak_prior"].to_list() == [0, 0, 1, 2, 3]
+
+
+def test_absence_run_full_is_forward_looking_and_prior_streak_is_not(
+    state: pl.DataFrame,
+):
+    """Pin the difference between the diagnostic and the feature.
+
+    `absence_run_full` reports the length of the whole absence from its very
+    first row, so it knows the future; `absent_streak_prior` counts only what
+    has already happened. Confusing the two would leak heavily.
+    """
+    absent = state.filter(~pl.col("with_team"))
+    # On the first row of any multi-game absence the full run already knows the
+    # total, while the prior streak is still zero.
+    first_rows = absent.filter(
+        (pl.col("absent_streak_prior") == 0) & (pl.col("absence_run_full") > 1)
+    )
+    assert first_rows.height > 1000, "expected many multi-game absences"
+    assert (first_rows["absence_run_full"] > first_rows["absent_streak_prior"]).all()
+    # The prior streak never runs past the absence it belongs to.
+    assert (absent["absent_streak_prior"] < absent["absence_run_full"]).all()
+
+
+def test_no_forward_looking_column_is_a_model_feature():
+    """Guard the one column that is deliberately forward-looking."""
+    from nba_hierarchy.availability import REPORT_FEATURES, STATE_FEATURES
+
+    forbidden = {"absence_run_full", "min", "usg_pct", "played", "start_position"}
+    assert not (set(STATE_FEATURES) | set(REPORT_FEATURES)) & forbidden

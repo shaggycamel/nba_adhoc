@@ -134,6 +134,25 @@ def add_pre_game_state(
                 - played_idx.shift(1).forward_fill().over("player_id")
                 - 1
             ).alias("team_games_missed"),
+            # Consecutive games the player was not with the team immediately
+            # before this one. Unlike `absence_run_full` this looks only
+            # backwards, so it is safe as a feature. Filling the "last game he
+            # was present for" with -1 covers a player who has never been
+            # present: every prior game was then an absence, and on his very
+            # first row there are no prior games and so no prior absences.
+            (
+                pl.col("_idx")
+                - 1
+                - pl.when(pl.col("with_team"))
+                .then(pl.col("_idx"))
+                .otherwise(None)
+                .shift(1)
+                .forward_fill()
+                .over("player_id")
+                .fill_null(-1)
+            )
+            .clip(0)
+            .alias("absent_streak_prior"),
         ]
     )
 
@@ -214,7 +233,7 @@ def state_as_of(
         started=pl.lit(False),
         with_team=pl.lit(True),
         presence=pl.lit(PRESENCE_PENDING),
-        absence_run=pl.lit(0, dtype=pl.UInt32),
+        absence_run_full=pl.lit(0, dtype=pl.UInt32),
     )
     for col, dtype in panel.schema.items():
         if col not in virtual.columns:

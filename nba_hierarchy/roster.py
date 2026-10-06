@@ -20,7 +20,7 @@ What is and is not recovered:
   "not yet signed".
 * A player waived and later re-signed by the same team inside one season gets
   one interval spanning the gap, so the time away reads as ABSENT_UNKNOWN.
-  `absence_run` lets a downstream model discount implausibly long runs.
+  `absence_run_full` lets such a run be spotted and discounted offline.
 """
 
 from __future__ import annotations
@@ -50,6 +50,35 @@ _STATUS_SEVERITY = {
 _ABSENT_STATUSES = ("Out", "Doubtful")
 
 
+def _name_to_nba_id(data_dir: Path) -> pl.DataFrame:
+    """Exact-name lookup from the `util` crosswalk, for rows missing an id.
+
+    18.6% of injury report rows carry no `nba_id`. The crosswalk recovers most
+    of them by name. A name mapping to more than one player is dropped rather
+    than guessed: a wrong id invents an absence for the wrong player, which is
+    worse than leaving the row out.
+    """
+    xw = pl.read_parquet(data_dir / "util" / "player_id_map_vw.parquet")
+    pairs = (
+        pl.concat(
+            [
+                xw.select(pl.col("nba_name").alias("name"), "nba_id"),
+                xw.select(pl.col("conformed_name").alias("name"), "nba_id"),
+            ],
+            how="vertical",
+        )
+        .drop_nulls()
+        .unique()
+    )
+    unambiguous = (
+        pairs.group_by("name")
+        .agg(pl.col("nba_id").n_unique().alias("n"))
+        .filter(pl.col("n") == 1)
+        .select("name")
+    )
+    return pairs.join(unambiguous, on="name", how="inner").unique(subset=["name"])
+
+
 def load_injury_reports(
     data_dir: Path = DATA_DIR, date_to_season: pl.DataFrame | None = None
 ) -> pl.DataFrame:
@@ -57,13 +86,24 @@ def load_injury_reports(
     teams = pl.read_parquet(data_dir / "nba" / "teams.parquet").select(
         "team_id", "team_slug"
     )
+    raw = pl.read_parquet(data_dir / "nba" / "injuries.parquet")
+    names = _name_to_nba_id(data_dir)
     inj = (
-        pl.read_parquet(data_dir / "nba" / "injuries.parquet")
+        raw.join(
+            names, left_on="player_name", right_on="name", how="left", suffix="_xw"
+        )
+        .with_columns(nba_id=pl.col("nba_id").fill_null(pl.col("nba_id_xw")))
         .filter(pl.col("nba_id").is_not_null())
         .rename({"nba_id": "player_id"})
         .join(teams, on="team_slug", how="inner")
         .select("game_date", "team_id", "player_id", "player_name", "status")
     )
+    # Duplicate rows are exact repeats, not successive revisions: of 62,840
+    # (date, player, team) groups only 478 repeat, and in every one the status,
+    # reason and game_id agree. So there is no "last report before tip-off" to
+    # reconstruct -- the report carries one status per player per date, and a
+    # plain dedupe is correct. Severity ordering is kept only to make the choice
+    # deterministic for the ~21 rows whose status string is itself malformed.
     inj = (
         inj.with_columns(
             severity=pl.col("status").replace_strict(_STATUS_SEVERITY, default=99)
@@ -196,14 +236,18 @@ def build_panel(
     )
 
     panel = panel.sort(["player_id", "game_date", "game_id"])
-    # Length of the consecutive absence run each row belongs to, so a model can
-    # discount a run long enough to be a roster artefact rather than an injury.
+    # Length of the whole consecutive absence run each row belongs to. This
+    # spans games AFTER the row as well as before, so it is a diagnostic for
+    # spotting roster artefacts -- a run far longer than any injury is probably
+    # a waive-and-re-sign -- and NEVER a model feature: it would tell a model
+    # the player stays out for another month. `absent_streak_prior` in state.py
+    # is the prior-only version features should use.
     absent = ~pl.col("with_team")
     panel = panel.with_columns(
         _run=(absent != absent.shift(1).fill_null(False)).cum_sum().over("player_id")
     )
     panel = panel.with_columns(
-        absence_run=pl.when(absent)
+        absence_run_full=pl.when(absent)
         .then(pl.len().over(["player_id", "_run"]))
         .otherwise(0)
     ).drop("_run")
