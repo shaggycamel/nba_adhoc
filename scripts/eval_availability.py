@@ -47,7 +47,7 @@ def main() -> None:
             )
         )
         .select("status", "rows", "play_rate")
-        .sort("report_level" if "report_level" in () else "status")
+        .sort("rows", descending=True)
     )
 
     combined = STATE_FEATURES + REPORT_FEATURES

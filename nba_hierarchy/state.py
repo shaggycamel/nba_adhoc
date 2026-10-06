@@ -211,17 +211,17 @@ def candidate_roster(
     return on_recent_roster.join(current_team, on="player_id", how="inner")
 
 
-def state_as_of(
+def append_serving_rows(
     panel: pl.DataFrame,
     as_of_date: date,
     lookback_games: int = 10,
-    **kwargs,
 ) -> pl.DataFrame:
-    """Pre-game state for every rostered player as of `as_of_date`.
+    """Panel history before `as_of_date`, plus a virtual row per rostered player.
 
-    The daily-run entrypoint. Virtual rows for the target date are appended to
-    the real panel and run through `add_pre_game_state` unchanged, so serving
-    and training share one code path.
+    Returned unfiltered so that every later layer -- positions, availability,
+    absorption -- can run over the same frame the training build sees, with the
+    target date's rows picked out only at the end. Filtering here instead would
+    strip each player's history and silently null every trailing feature.
     """
     prior = panel.filter(pl.col("game_date") < as_of_date)
     candidates = candidate_roster(panel, as_of_date, lookback_games)
@@ -238,7 +238,24 @@ def state_as_of(
     for col, dtype in panel.schema.items():
         if col not in virtual.columns:
             virtual = virtual.with_columns(pl.lit(None, dtype=dtype).alias(col))
+    return pl.concat([prior, virtual.select(panel.columns)], how="vertical")
 
-    combined = pl.concat([prior, virtual.select(panel.columns)], how="vertical")
-    state = add_pre_game_state(combined, **kwargs)
-    return state.filter(pl.col("game_id") == SERVING_GAME_ID)
+
+def serving_rows(df: pl.DataFrame) -> pl.DataFrame:
+    """The virtual rows added by `append_serving_rows`."""
+    return df.filter(pl.col("game_id") == SERVING_GAME_ID)
+
+
+def state_as_of(
+    panel: pl.DataFrame,
+    as_of_date: date,
+    lookback_games: int = 10,
+    **kwargs,
+) -> pl.DataFrame:
+    """Layer 1 state for every rostered player as of `as_of_date`.
+
+    Virtual rows are run through `add_pre_game_state` unchanged, so serving and
+    training share one code path.
+    """
+    combined = append_serving_rows(panel, as_of_date, lookback_games)
+    return serving_rows(add_pre_game_state(combined, **kwargs))
