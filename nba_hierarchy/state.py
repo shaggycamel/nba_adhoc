@@ -25,13 +25,12 @@ from datetime import date
 import polars as pl
 
 from .config import EWM_HALF_LIVES, RATE_STATS, ROLL_WINDOWS, SERVING_GAME_ID
-from .data import STATUS_COACH
+from .data import ROW_KEY, STATUS_COACH, canonical_sort  # noqa: F401
 
 # Half-life used to rank a team's players into a depth chart.
 DEPTH_ANCHOR_HL = 8
 
 PRESENCE_PENDING = "PENDING"
-
 
 def _prior_ewm(col: str, half_life: int) -> pl.Expr:
     """EWMA of `col` over games played strictly before this row."""
@@ -65,7 +64,7 @@ def add_pre_game_state(
     Expects the panel sorted by (player_id, game_date, game_id); `.over()`
     windows read each player's games in that order.
     """
-    panel = panel.sort(["player_id", "game_date", "game_id"])
+    panel = canonical_sort(panel)
 
     # Minutes with an absence counted as zero. This is the depth signal: a
     # player who misses six weeks should decay down the rotation, which a

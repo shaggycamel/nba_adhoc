@@ -30,7 +30,7 @@ from pathlib import Path
 import polars as pl
 
 from .config import DATA_DIR, SEASON_TYPES
-from .data import load_player_games
+from .data import canonical_sort, load_player_games
 
 # Presence on a team game, superseding the box score `status`.
 PRESENCE_ABSENT_INJ = "ABSENT_INJ"
@@ -235,7 +235,10 @@ def build_panel(
         .drop("player_name_ref", "team_abbreviation_ref")
     )
 
-    panel = panel.sort(["player_id", "game_date", "game_id"])
+    # Same order as every other layer, so `absence_run_full` below and
+    # `absent_streak_prior` in state.py cannot disagree about which row of an
+    # absence comes first.
+    panel = canonical_sort(panel)
     # Length of the whole consecutive absence run each row belongs to. This
     # spans games AFTER the row as well as before, so it is a diagnostic for
     # spotting roster artefacts -- a run far longer than any injury is probably

@@ -32,6 +32,7 @@ import numpy as np
 import polars as pl
 
 from .config import DATA_DIR
+from .state import canonical_sort
 
 SLOTS = ("G", "F", "C")
 POSITIONS = ("PG", "SG", "SF", "PF", "C")
@@ -95,7 +96,7 @@ def add_start_history(panel: pl.DataFrame) -> pl.DataFrame:
         .alias(f"prior_starts_{s}")
         for s in SLOTS
     ]
-    out = panel.sort(["player_id", "game_date", "game_id"]).with_columns(counts)
+    out = canonical_sort(panel).with_columns(counts)
     total = pl.sum_horizontal(f"prior_starts_{s}" for s in SLOTS)
     return out.with_columns(
         [total.alias("prior_starts_total")]
@@ -169,15 +170,18 @@ def assign_positions(state: pl.DataFrame) -> pl.DataFrame:
 
     Nothing in the data labels these five positions, so this is a documented
     reading of the roster, not a fact recovered from the source. Its soundness
-    is bounded by how far apart the two sides of each split actually are, and
-    they are often close: the median within-team gap is 0.082 in assist
-    percentage for guards and 0.162 in size score for forwards, but the bottom
-    quartile of pairs sits under 0.039 and 0.059 respectively.
+    is bounded by how far apart the rule's two sides actually are at the point
+    it cuts, and often that is barely at all. Measured on 2024-25 and 2025-26,
+    the gap between the last player on the lead side and the first on the other
+    has a median of 0.040 in assist percentage for guards and 0.064 in size
+    score for forwards -- and 28.4% of guard boundaries and 22.7% of forward
+    boundaries fall below 0.02, which is close enough to call arbitrary.
 
-    Measured game to game on 2024-25 and 2025-26, a player keeps the same
-    position 87.3% of the time, against 97.0% for the coarse G/F/C slot. Almost
-    all of the difference is churn inside these two splits: PG<->SG and SF<->PF.
-    Treat the coarse slot as reliable and the split as indicative.
+    Game to game, a player keeps the same position 87.5% of the time against
+    97.1% for the coarse G/F/C slot. Centres, who need no split, hold 97.2%;
+    the split positions run from 89.6% for point guards down to 80.7% for small
+    forwards, and nearly all the churn is PG<->SG and SF<->PF. Treat the coarse
+    slot as reliable and the split as indicative.
 
     An earlier version paired players into tiers of two by minutes and split
     inside each pair, which was worse (85.6%): when two guards swapped minutes
@@ -192,7 +196,9 @@ def assign_positions(state: pl.DataFrame) -> pl.DataFrame:
 
     # Playmaking orders guards, size orders forwards.
     key = pl.when(pl.col("slot") == "G").then(playmaking).otherwise(bigness)
-    out = state.with_columns(
+    # `rank("ordinal")` breaks ties by row order, so the frame needs a
+    # reproducible one before any ranking.
+    out = canonical_sort(state).with_columns(
         _key_rank=key.rank("ordinal", descending=True).over(by_slot),
         _slot_n=pl.len().over(by_slot),
     )

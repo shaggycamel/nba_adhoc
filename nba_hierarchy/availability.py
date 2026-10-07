@@ -29,9 +29,9 @@ only on seasons that finished before it:
     model                   log loss   Brier     AUC     ECE
     base rate                 0.6708  0.2389  0.5000  0.0111
     status only               0.4144  0.1336  0.8030  0.0549
-    state only                0.3785  0.1171  0.9019  0.0105
-    state + report            0.2548  0.0799  0.9556  0.0205
-    state + report + isotonic 0.2561  0.0805  0.9544  0.0118
+    state only                0.3787  0.1172  0.9018  0.0102
+    state + report            0.2548  0.0800  0.9555  0.0206
+    state + report + isotonic 0.2581  0.0805  0.9544  0.0115
 
 The report is worth a third of the log loss over knowing only who has been
 playing lately, so injury earns its place rather than being assumed into the
@@ -46,8 +46,10 @@ Two cautions for anyone reading per-status rates directly:
 * 2021-22 is not comparable to later seasons. The report covered only 4.9% of
   player-games against ~30% since, and an "Out" that season still played 8.2%
   of the time versus 0.1-0.6% later. Excluding it from training was tested and
-  changed nothing (log loss 0.2586 against 0.2565), so it is kept for the extra
-  data, but any statistic cut by status should exclude it.
+  the two metrics disagree on which is better -- log loss 0.2562 against 0.2581
+  for keeping it, calibration error 0.0161 against 0.0115 -- so it is within
+  noise and the season is kept for the extra data. Any statistic cut by status
+  should still exclude it.
 """
 
 from __future__ import annotations
@@ -56,6 +58,7 @@ import numpy as np
 import polars as pl
 
 from .config import INJURY_ERA_START
+from .state import ROW_KEY, canonical_sort
 
 NO_REPORT = "NO_REPORT"
 
@@ -103,7 +106,7 @@ def add_report_features(panel: pl.DataFrame) -> pl.DataFrame:
     The history columns are shifted and look only backwards.
     """
     levels = {s: i for i, s in enumerate(REPORT_LEVELS)}
-    out = panel.sort(["player_id", "game_date", "game_id"]).with_columns(
+    out = canonical_sort(panel).with_columns(
         _status=pl.col("report_status").fill_null(NO_REPORT)
     )
     out = out.with_columns(
@@ -261,7 +264,11 @@ def fit_calibrated_play_model(
     """Fit the play model, holding back the latest games to calibrate on."""
     from sklearn.isotonic import IsotonicRegression
 
-    ordered = train.sort(["game_date", "game_id"])
+    # Chronological, but broken down to a unique key: millions of rows share a
+    # date and game, and a split taken on that alone cuts arbitrarily among the
+    # ties, so the calibration set -- and every probability fitted from it --
+    # differed between runs.
+    ordered = train.sort(["game_date", "game_id", "team_id", "player_id"])
     split = int(ordered.height * (1 - calibration_fraction))
     fit_part, calib_part = ordered.head(split), ordered.tail(ordered.height - split)
 

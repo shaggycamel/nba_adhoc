@@ -36,26 +36,28 @@ Measured on 2024-25 and 2025-26, each trained only on earlier seasons:
     minutes, players who played      MAE    RMSE      R2
       season mean                   5.348   7.042  0.5430
       trailing mean                 5.163   6.753  0.5798
-      allocation baseline           6.337   8.421  0.2015
-      model, own form only          5.049   6.536  0.6065
-      model, own + absorption       4.762   6.161  0.6507
+      allocation baseline           5.352   7.100  0.5361
+      model, own form only          5.052   6.535  0.6067
+      model, own + absorption       4.762   6.158  0.6510
 
     same, top quartile of expected vacated minutes
-      model, own form only          5.665   7.350  0.3917
-      model, own + absorption       5.247   6.728  0.4913
+      allocation baseline           6.335   8.416  0.1993
+      model, own form only          5.662   7.343  0.3904
+      model, own + absorption       5.248   6.716  0.4910
 
     usage, players who played
       season mean                   0.052   0.072  0.2898
       trailing mean                 0.050   0.069  0.3310
-      model, own + absorption       0.050   0.069  0.3413
+      model, own form only          0.051   0.070  0.3260
+      model, own + absorption       0.050   0.069  0.3421
 
-Absorption is worth 0.044 of R2 on minutes overall and 0.100 where a quarter or
+Absorption is worth 0.044 of R2 on minutes overall and 0.101 where a quarter or
 more of the team's minutes are in doubt. The gain concentrating in exactly the
 situations the features describe is the evidence that they capture the mechanism
 rather than merely adding capacity.
 
 Usage is the weak half, and the honest reading is that it barely beats a
-trailing mean: 0.3413 against 0.3310, with the same mean absolute error to three
+trailing mean: 0.3421 against 0.3310, with the same mean absolute error to three
 decimals. Game-level usage is mostly noise once minutes are known. Anything
 built on top of this should lean on the minutes prediction.
 
@@ -65,18 +67,25 @@ minutes across every roster row, absentees counted as zero. That is well clear
 of the conditional figure above, because knowing who turns up carries more of
 the variance than knowing how long they stay on once they do.
 
-Two things were tried and rejected on measurement. Rescaling each team's
-expected minutes to its budget is a wash (mean absolute error 3.999 against
-4.005, R2 0.7872 against 0.7880), so the zero-sum structure motivates the
-features but is not worth enforcing on the output. And the mechanical allocation
-baseline is poor, below even a trailing mean: a vacated minute does not spread
-across a roster in proportion to who was already playing.
+Two things were tried and rejected on measurement, recorded so they are not
+retried blind. Rescaling each team's expected minutes to its budget is a wash
+(mean absolute error 3.999 against 4.003, R2 0.7872 against 0.7882), so the
+zero-sum structure motivates the features without being worth enforcing on the
+output. And the mechanical allocation baseline, which shares the budget out in
+proportion to expected minutes, is no better than a trailing mean overall and
+collapses where it was supposed to help most: on the quartile of rows with the
+largest absences its R2 falls to 0.199, against 0.491 for the model. A vacated
+minute does not spread across a roster in proportion to who was already
+playing, which is the whole reason this layer learns the allocation instead of
+assuming it.
 """
 
 from __future__ import annotations
 
 import numpy as np
 import polars as pl
+
+from .state import canonical_sort
 
 TEAM_KEYS = ("game_id", "team_id")
 
@@ -136,7 +145,8 @@ def add_absorption_features(scored: pl.DataFrame) -> pl.DataFrame:
     # A player's own usage budget: his rate times the minutes he plays at it.
     baseline_usage = baseline_minutes * pl.col("ewm_usg_pct_8").fill_null(0.0)
 
-    out = scored.with_columns(
+    # Ranked below, so the row order has to be reproducible first.
+    out = canonical_sort(scored).with_columns(
         _expected_minutes=pl.col("p_play") * baseline_minutes,
         _vacated_minutes=absent_weight * baseline_minutes,
         _vacated_usage=absent_weight * baseline_usage,

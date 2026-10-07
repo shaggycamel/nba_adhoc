@@ -84,3 +84,36 @@ def test_doubtful_players_rank_below_their_own_depth(served: pl.DataFrame):
     # Averaged over such players, available rank is worse than full-roster rank.
     assert doubtful["rank_improvement"].mean() < 0
     assert doubtful["p_play"].mean() < served["p_play"].mean()
+
+
+def test_calibration_split_is_order_independent():
+    """The availability model's calibration slice must not move between runs.
+
+    It is taken as the last fraction of training data by date. Millions of rows
+    share a date and game id, so splitting on those alone cut arbitrarily among
+    the ties and changed which rows calibrated the model -- which moved every
+    probability it produced.
+    """
+    from nba_hierarchy.availability import (
+        REPORT_FEATURES,
+        STATE_FEATURES,
+        add_report_features,
+        fit_calibrated_play_model,
+        injury_era,
+    )
+    from nba_hierarchy.data import load_player_games
+    from nba_hierarchy.roster import build_panel
+    from nba_hierarchy.state import add_pre_game_state
+
+    data = injury_era(
+        add_report_features(add_pre_game_state(build_panel(pg=load_player_games())))
+    )
+    train = data.filter(pl.col("season") < "2024-25")
+    test = data.filter(pl.col("season") == "2024-25").head(4000)
+    features = STATE_FEATURES + REPORT_FEATURES
+
+    straight = fit_calibrated_play_model(train, features).predict(test)
+    shuffled = fit_calibrated_play_model(
+        train.sample(fraction=1.0, shuffle=True, seed=11), features
+    ).predict(test)
+    assert (straight == shuffled).all()

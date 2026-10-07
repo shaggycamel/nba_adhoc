@@ -289,3 +289,40 @@ def test_no_forward_looking_column_is_a_model_feature():
 
     forbidden = {"absence_run_full", "min", "usg_pct", "played", "start_position"}
     assert not (set(STATE_FEATURES) | set(REPORT_FEATURES)) & forbidden
+
+
+def test_canonical_row_key_is_unique(panel: pl.DataFrame):
+    """The sort key must be a total order, or windows become order-dependent.
+
+    (player, date, game) is not enough: a player traded between two teams that
+    then play each other has two rows for that one game.
+    """
+    from nba_hierarchy.state import ROW_KEY
+
+    assert panel.select(ROW_KEY).unique().height == panel.height
+    # And demonstrate why the shorter key would not do.
+    shorter = ["player_id", "game_date", "game_id"]
+    assert panel.select(shorter).unique().height < panel.height
+
+
+def test_features_do_not_depend_on_input_row_order(panel: pl.DataFrame):
+    """Shuffling the panel must not change a single feature.
+
+    Polars' sort is not stable, so any tie in the sort key let row order -- and
+    therefore every windowed feature and every ordinal rank -- vary between
+    runs. This shuffles the input to catch that without needing two processes.
+    """
+    sample_players = panel.select("player_id").unique().head(400)
+    subset = panel.join(sample_players, on="player_id", how="inner")
+    shuffled = subset.sample(fraction=1.0, shuffle=True, seed=7)
+
+    a = add_pre_game_state(subset).sort(["player_id", "game_date", "game_id", "team_id"])
+    b = add_pre_game_state(shuffled).sort(["player_id", "game_date", "game_id", "team_id"])
+    feature_columns = [
+        c for c in a.columns
+        if c.startswith(("ewm_", "play_rate", "start_rate", "with_team_rate",
+                         "coach_dnp_rate", "career_", "season_", "team_games_",
+                         "days_", "absent_streak", "depth_rank"))
+    ]
+    assert len(feature_columns) > 40
+    assert a.select(feature_columns).equals(b.select(feature_columns))

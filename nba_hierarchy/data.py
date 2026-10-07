@@ -17,6 +17,21 @@ from .config import DATA_DIR, SEASON_TYPES
 # Absence reasons, normalised from the free-text `comment` field. Only the
 # coach/injury split is load-bearing for the hierarchy: a coach's decision is a
 # demotion signal, an injury is not.
+# A total order over panel rows, shared by every layer. All four columns are
+# needed: a player traded between two teams that then play each other appears
+# twice for that one game -- Kobe Bufkin, ATL to PHI, who met PHI on 2025-03-10
+# -- so (player, date, game) alone leaves ties. Polars' sort is not stable, so a
+# tie means row order, and therefore every `.over("player_id")` window and every
+# `rank("ordinal")` downstream, changes between runs. 43 such pairs exist in the
+# panel and they were enough to make the pipeline non-reproducible.
+ROW_KEY = ("player_id", "game_date", "game_id", "team_id")
+
+
+def canonical_sort(df: pl.DataFrame, key: tuple[str, ...] = ROW_KEY) -> pl.DataFrame:
+    """Sort into a reproducible total order, by whichever key columns exist."""
+    return df.sort([c for c in key if c in df.columns])
+
+
 STATUS_PLAYED = "PLAYED"
 STATUS_COACH = "DNP_COACH"
 STATUS_INJURY = "DNP_INJURY"
@@ -149,4 +164,4 @@ def load_player_games(
             for c in rate_cols
         ]
     )
-    return pg.sort(["player_id", "game_date", "game_id"])
+    return canonical_sort(pg)
