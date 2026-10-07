@@ -35,7 +35,7 @@ from .availability import (
     injury_era,
 )
 from .config import DATA_DIR, SEASON_TYPES
-from .data import load_player_games
+from .data import load_fixtures, load_player_games
 from .position import (
     HISTORY_FEATURES,
     PROFILE_FEATURES,
@@ -139,12 +139,25 @@ def daily_hierarchy(
     data_dir: Path = DATA_DIR,
     season_types: tuple[str, ...] = SEASON_TYPES,
     lookback_games: int = 10,
+    require_fixture: bool = True,
 ) -> pl.DataFrame:
     """The daily run: a ranked, position-assigned depth chart for every team.
 
     Each layer's model is fitted only on games before `as_of_date`, and the
     target date's rows ride through the same transformations as the training
     history, so nothing in the output depends on code that only runs in service.
+
+    Output rows carry the fixture they describe -- `game_date`, `game_id`,
+    `opponent`, `home` -- because a depth chart with no game attached to it is
+    not interpretable once separated from its filename.
+
+    `require_fixture` keeps only teams that actually play on `as_of_date`, which
+    is the default because everything else about these rows refers to that date:
+    the injury report is read for it, and the features are computed up to it. On
+    a typical night a third of the league plays, and without this the run emits
+    a chart for all thirty teams -- inventing a game for twenty of them. Pass
+    False only to inspect a team's standing on a date it is idle, and read the
+    result as hypothetical.
     """
     panel = build_panel(data_dir, season_types)
     combined = _attach_report_for_date(
@@ -176,6 +189,14 @@ def daily_hierarchy(
     usage_model = fit_regressor(train, features, USAGE_TARGET)
 
     served = serving_rows(data)
+    fixtures = load_fixtures(data_dir, season_types).filter(
+        pl.col("game_date") == as_of_date
+    )
+    served = served.drop("game_id").join(
+        fixtures.select("team_id", "game_id", "opponent", "home", "matchup"),
+        on="team_id",
+        how="inner" if require_fixture else "left",
+    )
     served = predict(minutes_model, served, features, "minutes_if_plays")
     served = predict(usage_model, served, features, "usage_if_plays")
     return served.with_columns(

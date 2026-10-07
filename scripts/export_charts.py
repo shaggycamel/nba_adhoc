@@ -20,12 +20,7 @@ from nba_hierarchy.pipeline import daily_hierarchy
 REPORTS = Path(__file__).resolve().parent.parent / "reports"
 POSITION_ORDER = {p: i for i, p in enumerate(("PG", "SG", "SF", "PF", "C"))}
 
-COLUMNS = [
-    "team", "position", "depth", "player", "height_cm", "injury_report",
-    "p_play", "minutes_if_plays", "expected_minutes", "expected_usage",
-    "roster_rank", "available_rank", "rank_gain", "team_vacated_min",
-    "vacated_min_same_pos",
-]
+
 
 
 def chart_frame(as_of: date) -> pl.DataFrame:
@@ -34,7 +29,13 @@ def chart_frame(as_of: date) -> pl.DataFrame:
         served.with_columns(_p=pl.col("position").replace_strict(POSITION_ORDER))
         .sort(["team_abbreviation", "_p", "position_depth"])
         .select(
+            # The fixture these rows describe. Without it a chart is
+            # uninterpretable once separated from its filename.
+            "game_date",
+            "game_id",
             pl.col("team_abbreviation").alias("team"),
+            pl.col("opponent"),
+            pl.col("home"),
             "position",
             pl.col("position_depth").alias("depth"),
             pl.col("player_name").alias("player"),

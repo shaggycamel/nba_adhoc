@@ -67,7 +67,8 @@ def test_every_team_gets_a_full_set_of_positions(served: pl.DataFrame):
         *[(pl.col("position") == p).sum().alias(p) for p in POSITIONS],
         pl.len().alias("n"),
     )
-    assert per_team.height >= 25, "expected most teams to have a roster"
+    # Only teams with a fixture appear, so this is the slate size, not 30.
+    assert per_team.height >= 8, "expected a real slate"
     for p in POSITIONS:
         assert (per_team[p] >= 1).all(), f"a team has nobody at {p}"
     assert (per_team["n"] >= 10).all()
@@ -117,3 +118,46 @@ def test_calibration_split_is_order_independent():
         train.sample(fraction=1.0, shuffle=True, seed=11), features
     ).predict(test)
     assert (straight == shuffled).all()
+
+
+def test_output_identifies_the_fixture_it_describes(served: pl.DataFrame):
+    """A depth chart with no game attached is not interpretable on its own."""
+    for column in ("game_date", "game_id", "opponent", "home", "matchup"):
+        assert served[column].null_count() == 0, f"{column} has nulls"
+    assert (served["game_date"] == AS_OF).all()
+    # The sentinel used internally for virtual rows must not leak out.
+    assert (served["game_id"] > 0).all()
+    # A team plays one game a day, so each team maps to exactly one fixture.
+    per_team = served.group_by("team_abbreviation").agg(
+        pl.col("game_id").n_unique().alias("games")
+    )
+    assert (per_team["games"] == 1).all()
+
+
+def test_only_teams_with_a_fixture_are_predicted():
+    """Without this the run invents a game for every idle team.
+
+    On 2026-04-09 twelve teams played. The panel is built from box scores, which
+    cannot say who has a fixture, so before the schedule was consulted the run
+    emitted a chart for all thirty.
+    """
+    from nba_hierarchy.data import load_fixtures
+
+    light = date(2026, 4, 9)
+    playing = load_fixtures().filter(pl.col("game_date") == light)["team_id"].n_unique()
+    assert playing == 12, "fixture data changed; pick another light slate"
+
+    served = daily_hierarchy(light)
+    assert served["team_id"].n_unique() == playing
+
+    # The escape hatch still covers idle teams, for inspection only.
+    everyone = daily_hierarchy(light, require_fixture=False)
+    assert everyone["team_id"].n_unique() > playing
+
+
+def test_fixtures_are_one_row_per_team_game():
+    from nba_hierarchy.data import load_fixtures
+
+    f = load_fixtures()
+    assert f.height == f.select("team_id", "game_id").unique().height
+    assert f["team_id"].null_count() == 0

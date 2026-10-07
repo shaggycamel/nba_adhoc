@@ -116,6 +116,38 @@ def load_schedule(data_dir: Path = DATA_DIR) -> pl.DataFrame:
     return sched.unique(subset=["game_id"], keep="first")
 
 
+def load_fixtures(
+    data_dir: Path = DATA_DIR,
+    season_types: tuple[str, ...] = SEASON_TYPES,
+) -> pl.DataFrame:
+    """One row per team per scheduled game: who they play, where, and when.
+
+    The panel is built from box scores, which only exist once a game has been
+    played, so it cannot say whether a team has a fixture on a given date. That
+    makes this the only source that can stop a daily run inventing a game for a
+    team that is not playing.
+    """
+    teams = pl.read_parquet(data_dir / "nba" / "teams.parquet").select(
+        "team_id", "team_slug"
+    )
+    sched = pl.read_parquet(data_dir / "nba" / "league_game_schedule.parquet")
+    if season_types:
+        sched = sched.filter(pl.col("season_type").is_in(season_types))
+    return (
+        sched.join(teams, left_on="team", right_on="team_slug", how="inner")
+        .select(
+            "team_id",
+            "game_id",
+            "game_date",
+            "season",
+            pl.col("opponent"),
+            pl.col("home"),
+            pl.col("matchup"),
+        )
+        .unique(subset=["team_id", "game_id"], keep="first")
+    )
+
+
 def load_player_games(
     data_dir: Path = DATA_DIR,
     season_types: tuple[str, ...] = SEASON_TYPES,
