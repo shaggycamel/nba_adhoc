@@ -217,7 +217,12 @@ def reason_features(col: str = "reason") -> list[pl.Expr]:
         ailment_text.str.contains(r"recovery|rehab|reconditioning").alias("is_recovery_stage"),
         ailment_text.str.contains(r"management|maintenance|precaution|load").alias("is_management"),
         ailment_text.str.contains(r"stress fracture|stress reaction").alias("is_bone_stress"),
-        norm.str.contains(r"\bacl\b|cruciate|achilles").alias("is_catastrophic_structure"),
+        # Mentioning one of these structures is not the same as having done
+        # something catastrophic to it: "Achilles; Soreness" is a rest night.
+        # The severity flag is the conjunction of structure and pathology, and
+        # is built in `features`.
+        norm.str.contains(r"\bacl\b|\bpcl\b|cruciate|achilles|patellar tendon")
+        .alias("mentions_major_structure"),
         # A multi-part reason ("Abdominal; Strain/Left Ankle Sprain") signals a
         # player carrying more than one problem at once.
         (payload.str.count_matches(r"/") + payload.str.count_matches(r";"))

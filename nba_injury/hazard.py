@@ -29,6 +29,8 @@ import polars as pl
 # Time-varying columns the dynamic model may use. Each is a function of the
 # report up to and including game k, or of the schedule, which is fixed in
 # advance. Nothing here peeks at game k+1.
+MEAN_DAYS_BETWEEN_GAMES = 2.3
+
 TIME_VARYING = [
     "games_missed_so_far",
     "days_missed_so_far",
@@ -84,9 +86,6 @@ def build_hazard_rows(spells: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame
         pl.col("spell_game_no").alias("games_missed_so_far"),
         (pl.col("game_date") - pl.col("start_date")).dt.total_days()
         .alias("days_missed_so_far"),
-        # The gap to the next game is the next game's rest, which the schedule
-        # fixes months ahead.
-        pl.col("days_rest").shift(-1).over("spell_id").alias("days_to_next_game"),
         (pl.col("season_type") == "Playoffs").alias("in_playoffs_now"),
         (pl.col("status_clean") == "Out").alias("status_now_out"),
         (pl.col("status_clean") == "Doubtful").alias("status_now_doubtful"),
@@ -115,8 +114,6 @@ def build_hazard_rows(spells: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame
     rows = rows.with_columns(
         (pl.col("spell_game_no") - pl.col("_first_soft_at")).fill_null(-1)
         .alias("games_since_softened"),
-        pl.col("days_to_next_game").fill_null(3),
-        (pl.col("days_to_next_game").fill_null(3) == 1).alias("next_is_b2b"),
         (pl.col("spell_game_no").cast(pl.Float64) + 1).log().alias("log_games_missed_so_far"),
     ).drop("_soft", "_first_soft_at")
 
@@ -124,15 +121,40 @@ def build_hazard_rows(spells: pl.DataFrame, panel: pl.DataFrame) -> pl.DataFrame
 
 
 def attach_schedule_density(rows: pl.DataFrame, tctx: pl.DataFrame) -> pl.DataFrame:
-    """Add the forward schedule density as of each missed game."""
-    return rows.join(
-        tctx.select(
-            "season", "game_id", "team_slug",
-            pl.col("team_games_next_14d").alias("team_games_next_14d_now"),
-        ),
-        on=["season", "game_id", "team_slug"],
-        how="left",
-    ).with_columns(pl.col("team_games_next_14d_now").fill_null(0))
+    """Add the forward schedule as of each missed game.
+
+    Both columns come from the team's own schedule rather than from the
+    spell's rows. Shifting within the spell looks equivalent and is not: the
+    last row of a spell has no next row, and the last row of an *observed*
+    spell is precisely the one where the player came back, so whatever value
+    fills that gap becomes a near-perfect marker for the target. That leak
+    pushed per-game AUC to 0.98 and made the rolled-forward duration
+    predictions useless, because a real schedule never contains the sentinel.
+    """
+    next_gap = tctx.select(
+        "season", "team_slug",
+        (pl.col("team_game_idx") - 1).alias("team_game_idx"),
+        pl.col("days_rest").cast(pl.Float64).alias("days_to_next_game"),
+    )
+    out = (
+        rows.join(
+            tctx.select(
+                "season", "game_id", "team_slug",
+                pl.col("team_games_next_14d").alias("team_games_next_14d_now"),
+            ),
+            on=["season", "game_id", "team_slug"],
+            how="left",
+        )
+        .join(next_gap, on=["season", "team_slug", "team_game_idx"], how="left")
+        .with_columns(
+            pl.col("team_games_next_14d_now").fill_null(0),
+            # Only the team's final game of a season has no successor. Filling
+            # with the typical gap keeps that value indistinguishable from an
+            # ordinary two-day rest rather than making it a flag.
+            pl.col("days_to_next_game").fill_null(MEAN_DAYS_BETWEEN_GAMES),
+        )
+    )
+    return out.with_columns((pl.col("days_to_next_game") == 1).alias("next_is_b2b"))
 
 
 # --------------------------------------------------------------------------
@@ -274,28 +296,34 @@ SCHEDULE_TIME_COLS = [
 # not use these; the dynamic model exists to use them.
 REPORT_TIME_COLS = [c for c in TIME_VARYING if c not in SCHEDULE_TIME_COLS]
 
-MEAN_DAYS_BETWEEN_GAMES = 2.3
-
-
 def build_prediction_grid(
     spells: pl.DataFrame, tctx: pl.DataFrame, max_k: int = 100
 ) -> pl.DataFrame:
     """One row per (spell, k) for k = 1..max_k, with the schedule-time columns.
 
     This is what turns a hazard model into a duration prediction: evaluate
-    the hazard at every k, then take the product. The grid runs past the end
-    of the season using the average gap between games, so the resulting
-    expectation measures how long the injury would keep the player out rather
-    than how many games happened to be left — the two differ a lot for a
-    March injury, and only the first is a property of the injury.
+    the hazard at every k, then take the product.
+
+    Two deliberate choices about the calendar:
+
+    * The grid runs past the end of the season on the average gap between
+      games, so the resulting expectation measures how long the injury keeps
+      the player out rather than how many games happened to be left. The two
+      differ a lot for a March injury and only the first is a property of the
+      injury.
+    * Only the regular-season schedule is read from the calendar. How deep a
+      team goes in the playoffs is not known in December, so letting the grid
+      see those dates would quietly feed the model the team's eventual
+      postseason run. Everything past game 82 is extrapolated.
     """
     starts = spells.select(
         "spell_id", "season", pl.col("team_slug_start").alias("team_slug"),
         "start_team_game_idx", "start_date",
+        (pl.col("start_season_type") == "Playoffs").alias("started_in_playoffs"),
     )
-    sched = tctx.select(
-        "season", "team_slug", "team_game_idx", "game_date", "season_type",
-        "days_rest", "team_games_next_14d",
+    regular = tctx.filter(pl.col("season_type") == "Regular Season").select(
+        "season", "team_slug", "team_game_idx", "game_date", "days_rest",
+        "team_games_next_14d",
     )
 
     grid = starts.join(
@@ -303,35 +331,34 @@ def build_prediction_grid(
         how="cross",
     ).with_columns((pl.col("start_team_game_idx") + pl.col("k") - 1).alias("team_game_idx"))
 
-    grid = grid.join(sched, on=["season", "team_slug", "team_game_idx"], how="left")
+    grid = grid.join(regular, on=["season", "team_slug", "team_game_idx"], how="left")
 
-    # Past the last scheduled game, carry the season's shape forward on the
-    # average gap so the expectation is not truncated by the calendar.
-    last = sched.group_by("season", "team_slug").agg(
+    last = regular.group_by("season", "team_slug").agg(
         pl.col("team_game_idx").max().alias("last_idx"),
         pl.col("game_date").max().alias("last_date"),
     )
     grid = grid.join(last, on=["season", "team_slug"], how="left").with_columns(
         (pl.col("team_game_idx") > pl.col("last_idx")).alias("beyond_season")
     )
+    # Anchor the extrapolation on the spell's own start when the spell begins
+    # after the regular season, so a playoff injury is not dated from April.
+    anchor = (
+        pl.when(pl.col("started_in_playoffs"))
+        .then(pl.col("start_date"))
+        .otherwise(pl.col("last_date"))
+    )
+    steps = (
+        pl.when(pl.col("started_in_playoffs"))
+        .then(pl.col("k").cast(pl.Float64) - 1)
+        .otherwise((pl.col("team_game_idx") - pl.col("last_idx")).cast(pl.Float64))
+    )
     grid = grid.with_columns(
         pl.when(pl.col("beyond_season"))
-        .then(
-            pl.col("last_date")
-            + pl.duration(
-                days=(
-                    (pl.col("team_game_idx") - pl.col("last_idx")).cast(pl.Float64)
-                    * MEAN_DAYS_BETWEEN_GAMES
-                ).round()
-            )
-        )
+        .then(anchor + pl.duration(days=(steps * MEAN_DAYS_BETWEEN_GAMES).round()))
         .otherwise(pl.col("game_date"))
         .alias("game_date"),
-        pl.col("days_rest").fill_null(MEAN_DAYS_BETWEEN_GAMES),
-        pl.col("team_games_next_14d").fill_null(
-            round(14 / MEAN_DAYS_BETWEEN_GAMES)
-        ),
-        pl.col("season_type").fill_null("Regular Season"),
+        pl.col("days_rest").cast(pl.Float64).fill_null(MEAN_DAYS_BETWEEN_GAMES),
+        pl.col("team_games_next_14d").fill_null(round(14 / MEAN_DAYS_BETWEEN_GAMES)),
     )
 
     grid = grid.sort("spell_id", "k").with_columns(
@@ -340,7 +367,7 @@ def build_prediction_grid(
         .alias("days_missed_so_far"),
         (pl.col("k").cast(pl.Float64) + 1).log().alias("log_games_missed_so_far"),
         pl.col("days_rest").shift(-1).over("spell_id").alias("days_to_next_game"),
-        (pl.col("season_type") == "Playoffs").alias("in_playoffs_now"),
+        pl.col("started_in_playoffs").alias("in_playoffs_now"),
         pl.col("team_games_next_14d").alias("team_games_next_14d_now"),
     ).with_columns(
         pl.col("days_to_next_game").fill_null(MEAN_DAYS_BETWEEN_GAMES),

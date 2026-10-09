@@ -120,7 +120,7 @@ def build_panel() -> tuple[pl.DataFrame, dict]:
         "player_id", "player_name", "status_clean", "reason", "reason_category",
         "body_region", "body_side", "body_part_raw", "ailment_class", "ailment_raw",
         "is_surgical", "is_recovery_stage", "is_management", "is_bone_stress",
-        "is_catastrophic_structure", "n_reason_separators", "reason_len",
+        "mentions_major_structure", "n_reason_separators", "reason_len",
     ).unique(subset=["season", "game_id", "player_id"], keep="first")
 
     # Box score -> who actually played.
@@ -384,7 +384,7 @@ def build_spells() -> tuple[pl.DataFrame, pl.DataFrame, dict]:
             pl.col("is_recovery_stage").first().alias("is_recovery_stage"),
             pl.col("is_management").first().alias("is_management"),
             pl.col("is_bone_stress").first().alias("is_bone_stress"),
-            pl.col("is_catastrophic_structure").first().alias("is_catastrophic"),
+            pl.col("mentions_major_structure").first().alias("mentions_major_structure"),
             pl.col("n_reason_separators").first().alias("n_reason_separators"),
             # Did the filing change during the spell?
             pl.col("body_region").n_unique().alias("n_regions_in_spell"),

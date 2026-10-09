@@ -25,17 +25,16 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import polars as pl
-from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import (
     HistGradientBoostingClassifier,
     RandomForestClassifier,
 )
-from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import StandardScaler
 
 from . import hazard as hz
+from .design import Design
 
 MAX_K = 100
 
@@ -46,32 +45,40 @@ MAX_K = 100
 
 @dataclass
 class KMBaseline:
-    """Kaplan-Meier mean, optionally stratified, with shrinkage to the pool.
+    """Kaplan-Meier point estimate, optionally stratified, shrunk to the pool.
 
-    Stratum estimates are shrunk toward the global mean by
+    Stratum estimates are shrunk toward the global value by
     `n / (n + prior_weight)`, so a body-part/ailment cell seen twice does not
     get to assert its own mean.
+
+    `statistic` matters more than it looks. Duration here has a median of 1
+    game and a 99th percentile of 30, so the mean sits far above most of the
+    distribution: predicting the mean is right for squared error and badly
+    wrong for absolute error. Both are reported rather than picking one.
     """
 
     by: tuple[str, ...] = ()
     prior_weight: float = 10.0
+    statistic: str = "mean"
     name: str = "km"
     _global: float = 0.0
     _table: dict = field(default_factory=dict)
 
+    def _point(self, d, e) -> float:
+        return hz.km_mean(d, e) if self.statistic == "mean" else hz.km_median(d, e)
+
     def fit(self, spells: pl.DataFrame) -> "KMBaseline":
         d = spells["games_missed"].to_numpy()
         e = spells["event"].to_numpy()
-        self._global = hz.km_mean(d, e)
+        self._global = self._point(d, e)
         self._table = {}
         if self.by:
             for key, grp in spells.group_by(list(self.by)):
                 dd = grp["games_missed"].to_numpy()
                 ee = grp["event"].to_numpy()
                 n = len(dd)
-                raw = hz.km_mean(dd, ee)
                 w = n / (n + self.prior_weight)
-                self._table[tuple(key)] = w * raw + (1 - w) * self._global
+                self._table[tuple(key)] = w * self._point(dd, ee) + (1 - w) * self._global
         return self
 
     def predict(self, spells: pl.DataFrame) -> np.ndarray:
@@ -107,32 +114,14 @@ class PlayerHistoryBaseline:
 # Hazard models
 # --------------------------------------------------------------------------
 
-def _sklearn_pipeline(estimator, numeric: list[str], categorical: list[str], scale: bool):
-    num_steps = [("impute", SimpleImputer(strategy="median"))]
-    if scale:
-        num_steps.append(("scale", StandardScaler()))
-    pre = ColumnTransformer(
-        [
-            ("num", Pipeline(num_steps), numeric),
-            (
-                "cat",
-                Pipeline(
-                    [
-                        ("impute", SimpleImputer(strategy="constant", fill_value="missing")),
-                        ("oh", OneHotEncoder(handle_unknown="ignore", min_frequency=20)),
-                    ]
-                ),
-                categorical,
-            ),
-        ],
-        remainder="drop",
-    )
-    return Pipeline([("pre", pre), ("est", estimator)])
-
-
 @dataclass
 class HazardModel:
-    """A binary classifier over per-missed-game rows, read as a hazard."""
+    """A binary classifier over per-missed-game rows, read as a hazard.
+
+    `kind` picks both the estimator and the encoding it can digest: the
+    boosters take integer category codes and raw NaNs, the linear model and
+    the forest take one-hot columns and imputed values.
+    """
 
     name: str
     kind: str
@@ -140,22 +129,30 @@ class HazardModel:
     categorical: list[str]
     params: dict = field(default_factory=dict)
     _model: object | None = None
+    _design: Design | None = None
+    _cat_idx: list[int] = field(default_factory=list)
+    _names: list[str] = field(default_factory=list)
+
+    NATIVE_CATEGORICAL = ("lightgbm", "histgb")
+
+    @property
+    def uses_codes(self) -> bool:
+        return self.kind in self.NATIVE_CATEGORICAL
 
     def _build(self):
         if self.kind == "logistic":
-            return _sklearn_pipeline(
-                LogisticRegression(max_iter=2000, **self.params),
-                self.numeric, self.categorical, scale=True,
-            )
+            # Scaling is not optional here: the one-hot block sits next to
+            # raw minute totals in the thousands, and an L2 penalty applied
+            # to both on the same scale is not the model we asked for.
+            return Pipeline([
+                ("scale", StandardScaler()),
+                ("est", LogisticRegression(max_iter=3000, **self.params)),
+            ])
         if self.kind == "forest":
-            return _sklearn_pipeline(
-                RandomForestClassifier(random_state=0, n_jobs=-1, **self.params),
-                self.numeric, self.categorical, scale=False,
-            )
+            return RandomForestClassifier(random_state=0, n_jobs=-1, **self.params)
         if self.kind == "histgb":
-            return _sklearn_pipeline(
-                HistGradientBoostingClassifier(random_state=0, **self.params),
-                self.numeric, self.categorical, scale=False,
+            return HistGradientBoostingClassifier(
+                random_state=0, categorical_features=self._cat_idx, **self.params
             )
         if self.kind == "lightgbm":
             import lightgbm as lgb
@@ -163,23 +160,20 @@ class HazardModel:
             return lgb.LGBMClassifier(random_state=0, verbose=-1, n_jobs=-1, **self.params)
         raise ValueError(f"unknown kind {self.kind!r}")
 
-    def _frame(self, rows: pl.DataFrame):
-        cols = self.numeric + self.categorical
-        df = rows.select(cols).to_pandas()
-        if self.kind == "lightgbm":
-            for c in self.categorical:
-                df[c] = df[c].astype("category")
-        for c in self.numeric:
-            if df[c].dtype == bool:
-                df[c] = df[c].astype(float)
-        return df
+    def _matrix(self, rows: pl.DataFrame) -> np.ndarray:
+        if self.uses_codes:
+            X, self._cat_idx, self._names = self._design.codes(rows)
+            return X
+        X, self._names = self._design.onehot(rows)
+        return X
 
     def fit(self, rows: pl.DataFrame, target: str = "returns_next") -> "HazardModel":
-        self._model = self._build()
-        X = self._frame(rows)
+        self._design = Design(self.numeric, self.categorical).fit(rows)
+        X = self._matrix(rows)
         y = rows[target].to_numpy()
+        self._model = self._build()
         if self.kind == "lightgbm":
-            self._model.fit(X, y, categorical_feature=self.categorical)
+            self._model.fit(X, y, categorical_feature=self._cat_idx)
         else:
             self._model.fit(X, y)
         return self
@@ -187,7 +181,13 @@ class HazardModel:
     def hazard(self, rows: pl.DataFrame) -> np.ndarray:
         if self._model is None:
             raise RuntimeError("fit first")
-        return self._model.predict_proba(self._frame(rows))[:, 1]
+        return self._model.predict_proba(self._matrix(rows))[:, 1]
+
+    def feature_names(self) -> list[str]:
+        return list(self._names)
+
+    def matrix(self, rows: pl.DataFrame) -> np.ndarray:
+        return self._matrix(rows)
 
 
 def predict_from_grid(
@@ -219,41 +219,38 @@ def predict_from_grid(
 
 @dataclass
 class ObservedOnlyRegressor:
-    """LightGBM Poisson regression fitted to uncensored spells only.
+    """LightGBM regression fitted to uncensored spells only.
 
     Included to quantify the cost of the obvious shortcut: dropping the 22%
     of spells whose return was never seen removes most of the long ones, and
-    the fitted model inherits that.
+    the fitted model inherits that. `objective` chooses what it targets, so
+    it can be compared against a hazard model's mean and median on equal
+    footing instead of only where its training population happens to sit.
     """
 
     numeric: list[str]
     categorical: list[str]
-    name: str = "lgbm_observed_only"
+    objective: str = "poisson"
+    name: str = "lgbm (observed spells only)"
     params: dict = field(default_factory=dict)
     _model: object | None = None
-
-    def _frame(self, rows: pl.DataFrame):
-        df = rows.select(self.numeric + self.categorical).to_pandas()
-        for c in self.categorical:
-            df[c] = df[c].astype("category")
-        for c in self.numeric:
-            if df[c].dtype == bool:
-                df[c] = df[c].astype(float)
-        return df
+    _design: Design | None = None
+    _cat_idx: list[int] = field(default_factory=list)
 
     def fit(self, spells: pl.DataFrame) -> "ObservedOnlyRegressor":
         import lightgbm as lgb
 
         obs = spells.filter(pl.col("event") == 1)
+        self._design = Design(self.numeric, self.categorical).fit(obs)
+        X, self._cat_idx, _ = self._design.codes(obs)
+        extra = {"alpha": 0.5} if self.objective == "quantile" else {}
         self._model = lgb.LGBMRegressor(
-            objective="poisson", random_state=0, verbose=-1, n_jobs=-1, **self.params
+            objective=self.objective, random_state=0, verbose=-1, n_jobs=-1,
+            **extra, **self.params,
         )
-        self._model.fit(
-            self._frame(obs),
-            obs["games_missed"].to_numpy(),
-            categorical_feature=self.categorical,
-        )
+        self._model.fit(X, obs["games_missed"].to_numpy(), categorical_feature=self._cat_idx)
         return self
 
     def predict(self, spells: pl.DataFrame) -> np.ndarray:
-        return self._model.predict(self._frame(spells))
+        X, _, _ = self._design.codes(spells)
+        return self._model.predict(X)

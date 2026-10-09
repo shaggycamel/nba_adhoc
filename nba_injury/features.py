@@ -187,7 +187,7 @@ def team_context() -> pl.DataFrame:
         "season", "game_id", "team_slug", "team_game_idx", "game_date", "season_type",
         "days_rest", "home", "opp_slug",
         "team_games_before", "team_win_pct_before", "team_regular_remaining",
-        "team_games_total", "team_games_next_14d",
+        "team_regular_total", "team_games_next_14d",
     )
 
 
@@ -301,13 +301,24 @@ def build_index_features(spells: pl.DataFrame) -> pl.DataFrame:
 
     df = df.with_columns(
         ((pl.col("start_date") - pl.col("birthdate")).dt.total_days() / 365.25).alias("age"),
-        (pl.col("start_team_game_idx") / pl.col("team_games_total")).alias("season_progress"),
+        # Divided by the 82-game regular season, not by the games the team
+        # ended up playing: how deep they went in the playoffs is not
+        # knowable when the player is ruled out in December.
+        (pl.col("start_team_game_idx") / pl.col("team_regular_total"))
+        .alias("season_progress"),
         pl.col("start_date").dt.month().alias("start_month"),
         (pl.col("start_season_type") == "Playoffs").alias("starts_in_playoffs"),
         # A spell that is already running when the season opens began in the
         # off-season, so none of the in-season load history applies to it.
         (pl.col("start_team_game_idx") == 1).alias("starts_at_season_open"),
         (pl.col("index_category") == "illness").alias("is_illness"),
+        # A named major structure only matters alongside a pathology that
+        # actually takes one out: a torn, operated or fractured ACL or
+        # Achilles, not a sore one.
+        (
+            pl.col("mentions_major_structure")
+            & pl.col("ailment_class").is_in(["rupture_tear", "surgery", "fracture"])
+        ).alias("is_catastrophic"),
         (pl.col("days_rest") == 1).fill_null(False).alias("start_on_b2b"),
         pl.col("season").str.slice(0, 4).cast(pl.Int32).alias("season_start_year"),
     ).with_columns(
