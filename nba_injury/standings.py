@@ -240,7 +240,16 @@ def playin_probability(n_sims: int = N_SIMS, seed: int = 0) -> pl.DataFrame:
     rng = np.random.default_rng(seed)
 
     frames = []
-    for (season, conference), grp in st.group_by("season", "conference"):
+    # Iterate groups in a fixed order. polars does not guarantee group_by
+    # ordering, and the generator is drawn from inside this loop, so an
+    # unstable order silently makes the whole simulation irreproducible --
+    # and with it every downstream model that uses playoff hope as a feature.
+    groups = {
+        k: g for k, g in st.group_by("season", "conference")
+    }
+    for key in sorted(groups):
+        season, conference = key
+        grp = groups[key]
         dates = grp["game_date"].unique().sort().to_list()
         wide = grp.select("game_date", "team_slug", "wins", "played", "games_left")
         for d in dates:
@@ -284,4 +293,6 @@ def playin_probability(n_sims: int = N_SIMS, seed: int = 0) -> pl.DataFrame:
         # This is the "stakes" counterpart to hope.
         (4.0 * pl.col("playin_probability") * (1.0 - pl.col("playin_probability")))
         .alias("playin_stakes")
-    )
+    # A join does not promise an output order either, so pin it: downstream
+    # fits should not depend on which way round two equal rows landed.
+    ).sort("season", "team_slug", "game_date")

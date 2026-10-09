@@ -22,7 +22,14 @@ uv run python scripts/04_explain.py    # ablations, importance, partial dependen
 uv run python scripts/05_forecast.py   # forecasts for the held-out season
 uv run python scripts/06_incentive.py  # does the team's playoff position move returns?
 uv run python scripts/07_debias.py     # separate injury duration from team decision
+uv run python scripts/08_report_html.py       # standalone HTML report with charts
+uv run python scripts/09_sync_report_numbers.py  # sync the Markdown tables to the CSVs
 ```
+
+Findings come in two forms, both generated from the same tables:
+[`reports/injury_duration.html`](reports/injury_duration.html) (self-contained,
+charts, opens offline from a clone) and
+[`reports/injury_duration.md`](reports/injury_duration.md).
 
 `01_build.py` writes to `data/build/` (git-ignored); every later script reads
 from there. Summary tables land in `reports/`.

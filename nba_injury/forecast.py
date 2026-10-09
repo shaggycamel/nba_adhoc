@@ -42,7 +42,7 @@ def forecast_at_onset(
     return spell_features.select(
         "spell_id", "player_name", "season", "start_date", "team_slug_start",
         "body_region", "ailment_class", "index_status", "index_reason",
-        "games_missed", "event", "censor_reason",
+        "games_missed", "days_out", "event", "censor_reason",
     ).join(pred, on="spell_id", how="left")
 
 

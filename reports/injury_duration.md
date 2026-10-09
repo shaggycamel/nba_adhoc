@@ -166,25 +166,28 @@ was carrying signal (`reports/ablations.csv`):
 
 | variant | features | log loss | Δ | AUC | C-index |
 |---|---|---|---|---|---|
-| full model | 72 | 0.3166 | — | 0.854 | 0.742 |
-| drop elapsed-time + schedule | 65 | 0.3698 | **+0.0532** | 0.796 | 0.743 |
-| drop injury taxonomy | 61 | 0.3333 | **+0.0167** | 0.836 | 0.685 |
-| drop recent load | 51 | 0.3301 | **+0.0135** | 0.839 | 0.708 |
-| drop season/team context | 61 | 0.3208 | +0.0041 | 0.849 | 0.738 |
-| drop player attributes | 64 | 0.3168 | +0.0002 | 0.854 | 0.742 |
-| drop injury history | 58 | 0.3160 | −0.0006 | 0.855 | 0.746 |
-| *only* injury taxonomy | 11 | 0.4157 | +0.0991 | 0.726 | 0.685 |
-| *only* recent load | 21 | 0.4224 | +0.1058 | 0.717 | 0.680 |
-| *only* elapsed + schedule | 7 | 0.3639 | +0.0473 | 0.800 | 0.519 |
-| *only* player attributes | 8 | 0.4731 | +0.1565 | 0.511 | 0.527 |
-| *only* injury history | 14 | 0.4784 | +0.1617 | 0.617 | 0.584 |
+| full model | 78 | 0.3163 | — | 0.855 | 0.740 |
+| drop elapsed-time + schedule | 71 | 0.3710 | **+0.0546** | 0.792 | 0.745 |
+| drop injury taxonomy | 67 | 0.3327 | **+0.0164** | 0.837 | 0.680 |
+| drop recent load | 57 | 0.3279 | **+0.0115** | 0.842 | 0.709 |
+| drop team incentive | 72 | 0.3178 | +0.0014 | 0.853 | 0.738 |
+| drop season/team context | 67 | 0.3164 | +0.0001 | 0.855 | 0.741 |
+| drop player attributes | 70 | 0.3160 | -0.0003 | 0.855 | 0.739 |
+| drop injury history | 64 | 0.3140 | -0.0023 | 0.858 | 0.745 |
+| *only* injury taxonomy | 11 | 0.4157 | **+0.0994** | 0.726 | 0.684 |
+| *only* recent load | 21 | 0.4224 | **+0.1061** | 0.717 | 0.680 |
+| *only* elapsed + schedule | 7 | 0.3640 | **+0.0477** | 0.800 | 0.505 |
+| *only* team incentive | 6 | 0.4390 | **+0.1227** | 0.608 | 0.559 |
+| *only* player attributes | 8 | 0.4731 | **+0.1568** | 0.511 | 0.527 |
+| *only* injury history | 14 | 0.4784 | **+0.1621** | 0.617 | 0.584 |
 
 Note the split: **elapsed time dominates the next-game call** (AUC 0.800 on
-its own) but is useless for *ranking* severity (C-index 0.519), because every
+its own) but is useless for *ranking* severity (C-index 0.506), because every
 spell starts at k=1 and the block knows nothing else. **The injury taxonomy is
 the mirror image** — mediocre at timing (AUC 0.726) but the best single block
-for severity (C-index 0.685). You need both, and only those two plus recent
-load earn their place.
+for severity (C-index 0.684). You need both, and only those two plus recent
+load earn their place. Team incentive, added in section 7, prices at +0.0006 —
+nothing, for reasons section 7 goes into.
 
 ### Twelve features are enough
 
@@ -192,18 +195,18 @@ Adding features in permutation-importance order (`reports/parsimony.csv`):
 
 | features | log loss | AUC | C-index |
 |---|---|---|---|
-| 1 | 0.3721 | 0.790 | 0.501 |
+| 1 | 0.3721 | 0.789 | 0.501 |
 | 3 | 0.3350 | 0.833 | 0.712 |
-| 8 | 0.3174 | 0.854 | 0.737 |
-| **12** | **0.3141** | **0.857** | **0.745** |
-| 20 | 0.3135 | 0.857 | 0.743 |
-| 72 | 0.3166 | 0.854 | 0.742 |
+| 8 | 0.3172 | 0.854 | 0.736 |
+| **12** | **0.3140** | **0.857** | **0.741** |
+| 20 | 0.3141 | 0.857 | 0.741 |
+| 78 | 0.3163 | 0.855 | 0.740 |
 
-Twelve features beat all 72 on every column. They are, in importance order:
+Twelve features beat all 78 on every column. They are, in importance order:
 `days_missed_so_far`, `days_since_last_played`, `ailment_class`,
 `games_missed_so_far`, `days_to_next_game`, `team_games_next_14d_now`,
-`min_last`, `body_region`, `team_win_pct_before`, `is_catastrophic`,
-`start_on_b2b`, `season_progress`.
+`min_last`, `body_region`, `is_catastrophic`, `team_win_pct_before`,
+`is_management`, `season_progress`.
 
 Five of the twelve are elapsed time and schedule, two are the diagnosis, two
 are the team's situation, and one is the player's last workload. Nothing about
@@ -240,15 +243,15 @@ Per-game return prediction, 2025-26, 7,576 rows, base rate 0.166
 | model | AUC | log loss | Brier skill |
 |---|---|---|---|
 | base rate | 0.500 | 0.4506 | — |
-| logistic (L2) | 0.830 | 0.3427 | 0.251 |
-| random forest | 0.832 | 0.3401 | 0.261 |
-| HistGradientBoosting | 0.853 | 0.3181 | 0.302 |
-| LightGBM | 0.854 | 0.3166 | 0.307 |
-| LightGBM **+ live report state** | **0.867** | **0.3075** | **0.324** |
+| logistic (L2) | 0.830 | 0.3421 | 0.253 |
+| random forest | 0.832 | 0.3408 | 0.261 |
+| HistGradientBoosting | 0.854 | 0.3172 | 0.305 |
+| LightGBM | 0.855 | 0.3163 | 0.305 |
+| LightGBM **+ live report state** | **0.868** | **0.3059** | **0.327** |
 
 Boosted trees beat the forest and the linear model clearly and consistently;
 the two boosters are indistinguishable. Adding how the report has *moved*
-since onset (status softened from Out, diagnosis re-filed) is worth ~1.3 AUC
+since onset (status softened from Out, diagnosis re-filed) is worth 1.4 AUC
 points — real, but smaller than you would guess, because most long absences
 stay filed as "Out" right up to the night the player returns.
 
@@ -269,26 +272,26 @@ Median point estimate:
 
 | model | MAE | MAE (spells ≥5 games) | C-index |
 |---|---|---|---|
-| KM global | 2.75 | 10.73 | 0.500 |
+| KM global | 2.75 | 10.72 | 0.500 |
 | KM by region | 2.94 | 10.07 | 0.548 |
 | KM by ailment | 2.60 | 9.10 | 0.684 |
 | KM by region × ailment | 2.48 | 8.71 | 0.675 |
 | KM by region × ailment × status | 2.58 | 8.02 | 0.687 |
-| hazard, logistic | 4.00 | 10.72 | 0.717 |
-| LightGBM, observed spells only | **2.34** | 8.60 | 0.725 |
-| hazard, random forest | 2.55 | 8.97 | 0.725 |
-| hazard, LightGBM | 2.56 | 7.89 | 0.742 |
-| **hazard, HistGradientBoosting** | 2.51 | **7.80** | **0.745** |
+| hazard, logistic | 4.01 | 10.48 | 0.722 |
+| LightGBM, observed spells only | **2.33** | 8.59 | 0.728 |
+| hazard, random forest | 2.55 | 9.03 | 0.729 |
+| hazard, LightGBM | 2.60 | 7.83 | 0.740 |
+| **hazard, HistGradientBoosting** | 2.53 | **7.67** | **0.743** |
 
 Calibration of the LightGBM hazard survival curve, Brier skill against the
-base rate (`reports/horizon_brier.csv`): **0.237** at 1 game, **0.270** at 3,
-0.229 at 5, 0.201 at 10, 0.220 at 20. The per-game probabilities are well
+base rate (`reports/horizon_brier.csv`): **0.241** at 1 game, **0.263** at 3,
+0.219 at 5, 0.196 at 10, 0.192 at 20. The per-game probabilities are well
 calibrated across the whole range — top decile predicted 0.695, realised
 0.688; bottom decile 0.007 against 0.001 (`reports/calibration.csv`).
 
 **On the censoring-blind model.** It wins overall MAE (2.34) and loses
-everywhere that matters: worse on long spells (8.60 against 7.80) and worse at
-ranking severity (0.725 against 0.745). The MAE win is an artefact — MAE is
+everywhere that matters: worse on long spells (8.58 against 7.65) and worse at
+ranking severity (0.727 against 0.745). The MAE win is an artefact — MAE is
 computed on observed spells, which is precisely the population it was trained
 on, and that population is mostly one-game absences. This is the trap the
 hazard framing exists to avoid, and it is why **C-index is the fairest single
@@ -306,9 +309,9 @@ by region × ailment × reported status — the model adds:
 - **Severity ranking**: C-index 0.745 against 0.687.
 - **A distribution instead of a cell mean**: P(back next game), P(back within
   3), P(out past 20), per spell.
-- **Long absences**: MAE on spells of 5+ games drops from 8.02 to 7.80, and
-  from 10.73 for a flat baseline.
-- **A live next-game call**: AUC 0.867 for "does he play tomorrow", which the
+- **Long absences**: MAE on spells of 5+ games drops from 8.02 to
+  7.65, and from 10.72 for a flat baseline.
+- **A live next-game call**: AUC 0.868 for "does he play tomorrow", which the
   static table cannot answer at all.
 
 Honest subpopulation figures, because the headline is flattered by easy cases
@@ -316,15 +319,15 @@ Honest subpopulation figures, because the headline is flattered by easy cases
 
 | population | n | observed | actual KM mean | C-index | MAE (median pred) |
 |---|---|---|---|---|---|
-| all test spells | 1,565 | 80% | 9.3 | 0.742 | 2.56 |
-| fresh injuries (last played ≤4 days ago) | 1,350 | 85% | 6.4 | 0.713 | 2.07 |
-| rotation players (≥15 min/game) | 1,332 | 87% | 7.5 | 0.723 | 2.34 |
-| **fresh AND rotation** | 1,215 | 88% | 5.7 | **0.697** | **1.98** |
-| already-running absences (gap >10 days) | 114 | 54% | 27.1 | 0.695 | 9.66 |
+| all test spells | 1,565 | 80% | 9.3 | 0.740 | 2.60 |
+| fresh injuries (last played ≤4 days ago) | 1,350 | 85% | 6.4 | 0.711 | 2.11 |
+| rotation players (≥15 min/game) | 1,332 | 86% | 7.5 | 0.721 | 2.37 |
+| **fresh AND rotation** | 1,215 | 88% | 5.7 | **0.695** | **2.03** |
+| already-running absences (gap >10 days) | 114 | 54% | 27.1 | 0.691 | 9.57 |
 
 The cleanest number — a genuinely new injury to a player who was in the
-rotation — is **C-index 0.697 and a median-prediction MAE of 2.0 games**. The
-all-spells 0.742 is partly the model recognising absences that were already
+rotation — is **C-index 0.696 and a median-prediction MAE of 2.0 games**.
+The all-spells 0.741 is partly the model recognising absences that were already
 under way, which is easier and less useful.
 
 ---
@@ -357,7 +360,8 @@ but concentrated in cases where the status actually softens to Questionable
 **Rotation status confounds injury severity.** The model's longest calls are
 dominated by two-way and deep-bench rookies, because `min_last` and
 `days_since_last_played` cannot distinguish "badly hurt" from "not in the
-rotation". The rotation-player split above is the honest reading. Restricting
+rotation". On genuinely fresh injuries to rotation players — the honest
+subpopulation — the C-index is 0.696 against 0.741 over all spells. Restricting
 the training population, or modelling absence and rotation separately, is the
 obvious next step.
 
@@ -416,17 +420,17 @@ Per-game return hazard, by the team's position on the day:
 A 3.1× spread. The control that rules out the boring explanations is the
 season half. For rotation players within the same diagnosis, the gap between
 high-hope and low-hope teams is **+0.008 early in the season** — nothing,
-over 3,650 rows — and **+0.268 late**. Difference-in-differences
-**+0.260 [+0.224, +0.295]**, and it excludes zero for every diagnosis
+over 3,635 rows — and **+0.271 late**. Difference-in-differences
+**+0.264 [+0.226, +0.298]**, and it excludes zero for every diagnosis
 separately (`reports/incentive_did.csv`):
 
 | diagnosis | gap early | gap late | DiD | 95% CI |
 |---|---|---|---|---|
-| soreness | +0.057 | +0.377 | **+0.321** | [+0.228, +0.409] |
-| injury management | +0.107 | +0.370 | +0.263 | [+0.103, +0.424] |
-| contusion | +0.014 | +0.239 | +0.225 | [+0.105, +0.341] |
-| strain | +0.005 | +0.124 | +0.119 | [+0.032, +0.207] |
-| sprain | +0.049 | +0.153 | +0.103 | [+0.030, +0.177] |
+| soreness | +0.055 | +0.377 | **+0.322** | [+0.232, +0.413] |
+| injury management | +0.105 | +0.369 | +0.265 | [+0.111, +0.424] |
+| contusion | +0.012 | +0.239 | +0.227 | [+0.118, +0.343] |
+| strain | +0.006 | +0.125 | +0.118 | [+0.030, +0.209] |
+| sprain | +0.049 | +0.153 | +0.104 | [+0.033, +0.176] |
 
 Worse medical staff, more fragile rosters or a different injury mix on bad
 teams would all show up in the early season too. None of them do.
@@ -442,8 +446,8 @@ declining; that is noise, and it disappears at a readable bucket width.)
 
 | regime | P(return \| high hope) | P(return \| low hope) | gap | 95% CI |
 |---|---|---|---|---|
-| pre-policy, 2021-23 | 0.477 | 0.150 | 0.326 | [+0.277, +0.376] |
-| post-policy, 2023-26 | 0.412 | 0.174 | 0.238 | [+0.201, +0.274] |
+| pre-policy, 2021-23 | 0.477 | 0.150 | 0.326 | [+0.274, +0.377] |
+| post-policy, 2023-26 | 0.416 | 0.174 | 0.242 | [+0.207, +0.276] |
 
 Low-hope teams return players more often after the policy (0.150 → 0.174),
 which is the direction the rule intended. The gap narrowed by about a third
@@ -460,32 +464,37 @@ difference is a per-spell *discretion score*.
 
 | situation when ruled out | spells | pred games, as observed | at neutral urgency | difference |
 |---|---|---|---|---|
-| already eliminated | 458 | 18.09 | 9.51 | **+8.58 games (+19.5 days)** |
-| hope < 0.25 | 1,474 | 10.12 | 7.87 | +2.24 |
-| hope 0.25-0.75 | 888 | 12.92 | 12.56 | +0.36 |
-| hope > 0.75 | 3,916 | 8.03 | 8.39 | −0.36 |
+| already eliminated | 458 | 17.53 | 9.31 | **+8.23 games (+18.7 days)** |
+| hope < 0.25 | 1,473 | 10.06 | 7.90 | +2.16 |
+| hope 0.25-0.75 | 886 | 12.83 | 12.34 | +0.49 |
+| hope > 0.75 | 3,919 | 8.05 | 8.24 | -0.18 |
 
-Across all 6,736 spells the de-biasing is worth +0.91 games on average, but
+Across all 6,736 spells the de-biasing is worth under a game on average, but
 it is concentrated exactly where it should be — **you cannot tank an ACL**:
 
-| ailment | as observed | neutral | difference |
-|---|---|---|---|
-| rupture / tear | 45.56 | 45.34 | +0.22 |
-| surgery | 34.59 | 34.58 | 0.00 |
-| fracture | 26.76 | 26.84 | −0.08 |
-| tendinopathy | 11.16 | 9.66 | **+1.50** |
-| soreness | 7.94 | 6.70 | **+1.24** |
-| sprain | 11.79 | 10.63 | +1.16 |
-| contusion | 6.43 | 5.42 | +1.01 |
+| ailment | as observed | neutral | difference | share of its own length |
+|---|---|---|---|---|
+| management | 4.30 | 3.56 | +0.74 | **17.2%** |
+| soreness | 7.90 | 6.65 | +1.25 | 15.8% |
+| contusion | 6.34 | 5.41 | +0.94 | 14.8% |
+| tendinopathy | 10.88 | 9.33 | +1.55 | 14.2% |
+| surgery | 34.60 | 33.92 | +0.67 | 1.9% |
+| recovery | 21.63 | 21.25 | +0.38 | 1.8% |
+| dislocation | 20.96 | 20.68 | +0.28 | 1.3% |
+| rupture / tear | 45.34 | 44.79 | +0.55 | **1.2%** |
 
-The severe, non-discretionary diagnoses move by nothing. The soft-tissue and
-load-management ones move by 15-20% of their own duration. That pattern is a
-strong sign the measure is picking up discretion rather than noise.
+Read as a share, the pattern is a clean twenty-fold gradient: the
+non-discretionary diagnoses give up under 2% of their length, the
+discretionary ones 13-15%. A torn ligament loses 0.7% of its duration to
+the team's situation; a rest night filed as injury management loses 17.8%.
+That proportionality is the strongest sign the measure is picking up
+decisions rather than noise.
 
 ### It found a known tanking episode unprompted
 
-The highest discretion scores in the sample include Kyrie Irving (+24.4
-games), Tim Hardaway Jr. (+22.9) and Maxi Kleber (+14.7), all filed out by
+The highest discretion scores in the sample include Tim Hardaway Jr.
+(+26.9 games), Kyrie Irving (+23.8) and Maxi Kleber
+(+12.7), all filed out by
 Dallas on **2023-04-07** — the night Dallas sat its starters with a draft
 pick at stake, and was fined by the league for it. Nothing in the model knows
 about that episode, or about tanking; it only knows the team was out of
@@ -493,15 +502,15 @@ contention and the diagnoses were soft.
 
 ### It does not improve prediction
 
-This is the part worth being blunt about. Adding the incentive features to
-the model changes held-out accuracy by nothing:
+This is the part worth being blunt about. Adding the incentive features moves held-out log loss by +0.0006
+and AUC by +0.0009 — that is, by nothing:
 
-| | log loss | AUC | C-index | log loss (late) | AUC (late) |
+| model | log loss | AUC | C-index | log loss (late) | AUC (late) |
 |---|---|---|---|---|---|
-| without incentive | 0.3170 | 0.8534 | 0.7409 | 0.3879 | 0.8756 |
-| with incentive | 0.3166 | 0.8539 | 0.7405 | 0.3891 | 0.8731 |
+| without incentive | 0.3178 | 0.8525 | 0.7380 | 0.3889 | 0.8748 |
+| with incentive | 0.3163 | 0.8550 | 0.7404 | 0.3871 | 0.8748 |
 
-Not even late in the season, where the whole effect lives. The reason is that
+Barely more late in the season, where the whole effect lives. The reason is that
 `team_win_pct_before`, `season_progress` and `team_regular_remaining` were
 already in the feature set and already proxy the incentive well enough for
 forecasting. What the explicit measure buys is **interpretation** — the

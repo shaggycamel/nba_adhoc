@@ -207,7 +207,14 @@ def build_panel() -> tuple[pl.DataFrame, dict]:
 
     # Trades: a player can appear for two teams in one season. Order their
     # games by date so "games missed" follows the player, not a franchise.
-    panel = panel.sort("player_id", "season", "game_date", "game_id").with_columns(
+    # team_slug breaks the last tie, and it is not hypothetical: a player
+    # traded between two teams that then play each other is attached to both
+    # sides of one game, so (player, season, date, game_id) is not unique.
+    # polars' sort is not stable on ties, so without this the whole index
+    # shifts between runs and nothing downstream reproduces.
+    panel = panel.sort(
+        "player_id", "season", "game_date", "game_id", "team_slug"
+    ).with_columns(
         pl.int_range(1, pl.len() + 1).over("player_id", "season").alias("player_game_idx")
     )
 
@@ -357,35 +364,39 @@ def build_spells() -> tuple[pl.DataFrame, pl.DataFrame, dict]:
         .agg(pl.all().last())
     )
 
+    # `.sort_by("player_game_idx").first()` throughout: these columns mean
+    # "as filed on the first game of the spell", and group_by().agg() makes no
+    # promise about within-group row order, so a bare .first() silently picks
+    # an arbitrary game of the spell and stops the build being reproducible.
     spells = (
         spell_rows.group_by("spell_id")
         .agg(
-            pl.col("player_id").first(),
-            pl.col("player_name").first(),
-            pl.col("season").first(),
-            pl.col("team_slug").first().alias("team_slug_start"),
+            pl.col("player_id").sort_by("player_game_idx").first(),
+            pl.col("player_name").sort_by("player_game_idx").first(),
+            pl.col("season").sort_by("player_game_idx").first(),
+            pl.col("team_slug").sort_by("player_game_idx").first().alias("team_slug_start"),
             pl.col("game_date").min().alias("start_date"),
             pl.col("game_date").max().alias("last_missed_date"),
             pl.col("player_game_idx").min().alias("start_player_game_idx"),
-            pl.col("team_game_idx").first().alias("start_team_game_idx"),
-            pl.col("game_id").first().alias("start_game_id"),
-            pl.col("season_type").first().alias("start_season_type"),
+            pl.col("team_game_idx").sort_by("player_game_idx").first().alias("start_team_game_idx"),
+            pl.col("game_id").sort_by("player_game_idx").first().alias("start_game_id"),
+            pl.col("season_type").sort_by("player_game_idx").first().alias("start_season_type"),
             pl.len().alias("games_missed"),
             pl.col("is_bridged").sum().alias("n_bridged_games"),
             # Index (first-game) description of the injury.
-            pl.col("reason").first().alias("index_reason"),
-            pl.col("status_clean").first().alias("index_status"),
-            pl.col("reason_category").first().alias("index_category"),
-            pl.col("body_region").first().alias("body_region"),
-            pl.col("body_side").first().alias("body_side"),
-            pl.col("body_part_raw").first().alias("body_part_raw"),
-            pl.col("ailment_class").first().alias("ailment_class"),
-            pl.col("is_surgical").first().alias("is_surgical"),
-            pl.col("is_recovery_stage").first().alias("is_recovery_stage"),
-            pl.col("is_management").first().alias("is_management"),
-            pl.col("is_bone_stress").first().alias("is_bone_stress"),
-            pl.col("mentions_major_structure").first().alias("mentions_major_structure"),
-            pl.col("n_reason_separators").first().alias("n_reason_separators"),
+            pl.col("reason").sort_by("player_game_idx").first().alias("index_reason"),
+            pl.col("status_clean").sort_by("player_game_idx").first().alias("index_status"),
+            pl.col("reason_category").sort_by("player_game_idx").first().alias("index_category"),
+            pl.col("body_region").sort_by("player_game_idx").first().alias("body_region"),
+            pl.col("body_side").sort_by("player_game_idx").first().alias("body_side"),
+            pl.col("body_part_raw").sort_by("player_game_idx").first().alias("body_part_raw"),
+            pl.col("ailment_class").sort_by("player_game_idx").first().alias("ailment_class"),
+            pl.col("is_surgical").sort_by("player_game_idx").first().alias("is_surgical"),
+            pl.col("is_recovery_stage").sort_by("player_game_idx").first().alias("is_recovery_stage"),
+            pl.col("is_management").sort_by("player_game_idx").first().alias("is_management"),
+            pl.col("is_bone_stress").sort_by("player_game_idx").first().alias("is_bone_stress"),
+            pl.col("mentions_major_structure").sort_by("player_game_idx").first().alias("mentions_major_structure"),
+            pl.col("n_reason_separators").sort_by("player_game_idx").first().alias("n_reason_separators"),
             # Did the filing change during the spell?
             pl.col("body_region").n_unique().alias("n_regions_in_spell"),
             pl.col("ailment_class").n_unique().alias("n_ailments_in_spell"),

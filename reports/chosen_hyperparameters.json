@@ -4,12 +4,12 @@
   },
   "index_only|forest": {
     "n_estimators": 400,
-    "min_samples_leaf": 20
+    "min_samples_leaf": 50
   },
   "index_only|histgb": {
     "max_iter": 400,
     "learning_rate": 0.05,
-    "max_leaf_nodes": 31,
+    "max_leaf_nodes": 15,
     "early_stopping": true,
     "validation_fraction": 0.15
   },
@@ -31,7 +31,7 @@
   },
   "with_report_state|histgb": {
     "max_iter": 400,
-    "learning_rate": 0.1,
+    "learning_rate": 0.05,
     "max_leaf_nodes": 15,
     "early_stopping": true,
     "validation_fraction": 0.15

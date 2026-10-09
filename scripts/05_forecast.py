@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import warnings
 
+import numpy as np
 import polars as pl
 
-from nba_injury import experiment as ex, forecast, paths
+from nba_injury import experiment as ex, forecast, models, paths
 
 warnings.filterwarnings("ignore")
 
@@ -83,6 +84,27 @@ def main() -> None:
             print(f"    after {r['games_missed_so_far']:>3} missed "
                   f"({r['game_date']}, {r['status_clean'] or 'not listed':<12}) "
                   f"p={r['p_plays_next']:.3f} {bar}{flag}")
+
+    # Day-horizon calibration, written out so the HTML report quotes measured
+    # numbers rather than a copy of them.
+    dur = fc["days_out"].to_numpy().astype(float)
+    ev = fc["event"].to_numpy().astype(int)
+    cal_rows = []
+    for dh in models.DAY_HORIZONS:
+        mask = ((ev == 1) & (dur <= dh)) | (dur > dh)
+        y = (dur[mask] <= dh).astype(int)
+        pr = fc[f"p_back_within_{dh}d"].to_numpy()[mask]
+        base = np.full_like(pr, y.mean())
+        cal_rows.append({
+            "horizon_days": dh, "n_evaluable": int(mask.sum()),
+            "actual_rate": round(float(y.mean()), 4),
+            "mean_pred": round(float(pr.mean()), 4),
+            "brier": round(float(np.mean((pr - y) ** 2)), 5),
+            "brier_skill": round(float(1 - np.mean((pr - y) ** 2) / np.mean((base - y) ** 2)), 4),
+        })
+    pl.DataFrame(cal_rows).write_csv(rep / "day_horizon_calibration.csv")
+    print("\nP(back within D days), held-out season:")
+    print(pl.DataFrame(cal_rows))
 
     curves = forecast.survival_curve(
         onset, sp.filter(pl.col("games_missed") >= 20), d["team_context"], max_k=60
