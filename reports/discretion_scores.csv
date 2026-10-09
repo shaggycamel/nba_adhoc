@@ -1,0 +1,301 @@
+player_name,season,start_date,team_slug_start,region,ailment,hope,pred_games,pred_games_neutral,discretion_games,discretion_days,games_missed,days_out,event
+Anthony Davis,2021-22,2022-04-06,LAL,foot,sprain,0.0,45.1,18.5,26.6,60.7,3,4,0
+Kyrie Irving,2022-23,2023-04-07,DAL,foot,recovery,0.13,40.9,14.4,26.5,60.3,2,3,0
+Russell Westbrook,2021-22,2022-04-06,LAL,shoulder,soreness,0.0,41.2,15.0,26.1,59.6,3,4,0
+Deandre Ayton,2023-24,2024-04-14,POR,back_core,soreness,0.0,40.4,15.4,25.0,57.1,1,1,0
+Dennis Schröder,2023-24,2024-04-12,BKN,achilles,soreness,0.0,32.0,8.4,23.7,54.1,2,3,0
+Bruce Brown,2024-25,2025-04-10,NOP,knee,soreness,0.0,39.0,16.3,22.8,52.0,3,4,0
+Zion Williamson,2025-26,2026-04-10,NOP,knee,management,0.0,44.1,21.3,22.8,52.0,2,3,0
+Tim Hardaway Jr.,2022-23,2023-04-07,DAL,ankle,soreness,0.13,35.2,12.6,22.6,51.5,2,3,0
+RJ Barrett,2023-24,2024-04-14,TOR,knee,soreness,0.0,35.9,13.4,22.5,51.5,1,1,0
+Miles Bridges,2024-25,2025-04-09,CHA,hip_groin,soreness,0.0,33.0,10.6,22.4,51.2,3,5,0
+Kelly Olynyk,2024-25,2025-04-10,NOP,achilles,tendinopathy,0.0,43.0,20.8,22.3,50.7,3,4,0
+P.J. Washington,2025-26,2026-04-10,DAL,elbow_arm,sprain,0.0,37.1,15.6,21.5,49.0,2,3,0
+Quentin Grimes,2024-25,2025-04-11,PHI,shoulder,sprain,0.0,35.4,14.1,21.3,48.7,1,1,0
+Shaedon Sharpe,2024-25,2025-04-11,POR,knee,soreness,0.0,33.6,12.3,21.3,48.7,2,3,0
+Gary Harris,2022-23,2023-04-07,ORL,hip_groin,soreness,0.0,32.2,11.6,20.6,47.1,1,1,0
+Kyle Lowry,2024-25,2025-04-09,PHI,hip_groin,management,0.0,30.5,10.2,20.3,46.4,3,5,0
+Guerschon Yabusele,2024-25,2025-04-11,PHI,knee,soreness,0.0,34.6,14.3,20.3,46.3,2,3,0
+Isaac Okoro,2025-26,2026-04-09,CHI,quad,contusion,0.0,31.6,11.4,20.3,46.3,3,4,0
+RJ Barrett,2021-22,2022-04-09,NYK,knee,sprain,0.0,39.6,19.4,20.2,46.2,1,1,0
+Doug McDermott,2022-23,2023-04-06,SAS,ankle,sprain,0.0,39.6,19.4,20.2,46.0,3,4,0
+Taylor Hendricks,2025-26,2026-04-10,MEM,hand_wrist,sprain,0.0,37.7,17.6,20.1,45.9,2,3,0
+Lauri Markkanen,2022-23,2023-04-04,UTA,hand_wrist,contusion,0.05,28.3,8.3,20.0,45.5,4,6,0
+Devin Vassell,2024-25,2025-04-11,SAS,ankle,soreness,0.0,32.5,12.5,19.9,45.5,2,3,0
+Bilal Coulibaly,2025-26,2026-04-12,WAS,unknown,tendinopathy,0.0,34.5,14.6,19.9,45.4,1,1,0
+LaMelo Ball,2024-25,2025-04-02,CHA,ankle,tendinopathy,0.0,33.2,13.3,19.8,45.0,7,12,0
+Deni Avdija,2022-23,2023-04-04,WAS,elbow_arm,tendinopathy,0.0,31.0,11.4,19.7,44.9,4,6,0
+Nick Richards,2024-25,2025-04-09,PHX,elbow_arm,tendinopathy,0.0,32.9,13.4,19.5,44.5,3,5,0
+Isaiah Collier,2024-25,2025-04-09,UTA,hamstring,soreness,0.0,31.5,12.0,19.5,44.6,3,5,0
+Mark Williams,2024-25,2025-04-13,CHA,foot,management,0.0,33.0,13.5,19.5,44.6,1,1,0
+Kevin Porter Jr.,2022-23,2023-04-09,HOU,knee,soreness,0.0,30.8,11.7,19.1,43.8,1,1,0
+Gary Trent Jr.,2025-26,2026-04-10,MIL,back_core,strain,0.0,40.3,21.2,19.1,43.7,2,3,0
+Jabari Walker,2023-24,2024-04-14,POR,knee,tendinopathy,0.0,34.8,15.7,19.0,43.5,1,1,0
+Devin Booker,2024-25,2025-04-13,PHX,lower_leg,soreness,0.0,28.0,9.0,19.0,43.5,1,1,0
+Immanuel Quickley,2023-24,2024-04-14,TOR,hip_groin,strain,0.0,29.5,10.6,18.9,43.3,1,1,0
+Scoot Henderson,2023-24,2024-04-14,POR,hip_groin,soreness,0.0,29.8,11.0,18.8,42.9,1,1,0
+Yves Missi,2025-26,2026-04-10,NOP,hand_wrist,sprain,0.0,37.6,18.8,18.8,43.0,2,3,0
+Wendell Carter Jr.,2021-22,2022-03-29,ORL,hand_wrist,sprain,0.0,36.9,18.4,18.4,42.1,6,12,0
+Nick Richards,2023-24,2024-04-12,CHA,foot,soreness,0.0,33.1,14.7,18.4,42.0,2,3,0
+Devonte' Graham,2022-23,2023-04-06,SAS,hip_groin,strain,0.0,30.2,11.9,18.3,41.7,3,4,0
+Deni Avdija,2024-25,2025-04-06,POR,hand_wrist,sprain,0.01,26.6,8.3,18.3,41.7,4,8,0
+Cedric Coward,2025-26,2026-04-10,MEM,back_core,soreness,0.0,32.4,14.0,18.3,41.9,2,3,0
+Dillon Brooks,2023-24,2024-04-14,HOU,hip_groin,soreness,0.0,27.8,9.9,18.0,41.1,1,1,0
+P.J. Washington,2022-23,2023-04-02,CHA,foot,sprain,0.0,36.1,18.4,17.8,40.6,4,8,0
+Ryan Rollins,2025-26,2026-04-12,MIL,hand_wrist,sprain,0.0,30.4,12.5,17.8,40.8,1,1,0
+Jordan Poole,2024-25,2025-04-09,WAS,elbow_arm,contusion,0.0,26.7,9.1,17.7,40.4,3,5,0
+Jerami Grant,2021-22,2022-03-26,DET,lower_leg,strain,0.0,38.1,20.5,17.6,40.1,8,15,0
+Jose Alvarado,2024-25,2025-04-10,NOP,lower_leg,soreness,0.0,30.8,13.2,17.6,40.3,1,1,0
+GG Jackson,2025-26,2026-04-08,MEM,knee,soreness,0.0,37.6,20.0,17.6,40.2,3,5,0
+Kyle Kuzma,2022-23,2023-03-21,WAS,ankle,sprain,0.13,25.2,7.7,17.5,39.5,11,20,0
+Anthony Davis,2025-26,2026-02-08,WAS,hand_wrist,sprain,0.0,33.6,16.1,17.5,38.0,31,64,0
+Kyle Kuzma,2025-26,2026-04-12,MIL,achilles,tendinopathy,0.0,36.7,19.3,17.5,39.9,1,1,0
+Cade Cunningham,2021-22,2022-04-09,DET,hip_groin,soreness,0.0,25.4,8.2,17.2,39.3,1,1,0
+Damian Lillard,2022-23,2023-03-24,POR,lower_leg,soreness,0.01,21.9,4.7,17.2,38.5,10,17,0
+Cameron Johnson,2023-24,2024-04-12,BKN,foot,sprain,0.0,32.7,15.5,17.2,39.2,2,3,0
+Kevin Durant,2024-25,2025-04-01,PHX,ankle,sprain,0.26,26.7,9.5,17.2,39.0,7,13,0
+Brandon Clarke,2023-24,2024-04-10,MEM,hand_wrist,contusion,0.0,29.6,12.5,17.1,39.0,3,5,0
+Trey Murphy III,2025-26,2026-04-05,NOP,ankle,sprain,0.0,27.1,9.9,17.1,39.2,4,8,0
+Malcolm Brogdon,2021-22,2022-03-31,IND,back_core,soreness,0.0,28.9,11.9,17.0,38.8,5,10,0
+Wendell Carter Jr.,2022-23,2023-04-07,ORL,hip_groin,soreness,0.0,26.1,9.2,16.9,38.6,1,2,1
+Josh Giddey,2025-26,2026-04-05,CHI,hamstring,strain,0.0,27.6,10.7,16.9,38.5,5,8,0
+Anfernee Simons,2022-23,2023-03-22,POR,foot,soreness,0.03,27.2,10.4,16.8,37.7,11,19,0
+Kristaps Porziņģis,2021-22,2022-04-07,WAS,knee,management,0.0,28.6,12.2,16.5,37.7,2,3,0
+Noah Clowney,2025-26,2026-04-05,BKN,ankle,soreness,0.0,32.1,15.7,16.4,37.2,5,8,0
+Cole Anthony,2021-22,2022-04-04,ORL,foot,sprain,0.0,37.2,20.9,16.3,37.3,3,6,0
+Keldon Johnson,2024-25,2025-04-11,SAS,ankle,soreness,0.0,26.5,10.3,16.3,37.2,1,1,0
+Gordon Hayward,2022-23,2023-03-28,CHA,hand_wrist,sprain,0.0,25.0,8.8,16.2,37.0,6,13,0
+Guerschon Yabusele,2025-26,2026-04-12,CHI,shoulder,sprain,0.0,30.3,14.1,16.2,37.0,1,1,0
+Kyle Kuzma,2023-24,2024-04-05,WAS,ankle,sprain,0.0,24.3,8.2,16.1,37.0,5,10,0
+Yves Missi,2024-25,2025-04-10,NOP,ankle,soreness,0.0,27.6,11.4,16.1,36.9,3,4,0
+Fred VanVleet,2023-24,2024-04-14,HOU,hip_groin,contusion,0.0,23.4,7.4,16.0,36.7,1,1,0
+Josh Okogie,2024-25,2025-04-09,CHA,hamstring,management,0.0,23.1,7.0,16.0,36.6,1,1,0
+Jalen Smith,2021-22,2022-04-08,IND,hip_groin,soreness,0.0,30.9,15.2,15.7,35.9,2,2,0
+Isaiah Livers,2022-23,2023-04-05,DET,ankle,sprain,0.0,26.4,10.7,15.7,35.9,3,5,0
+Victor Wembanyama,2023-24,2024-04-14,SAS,ankle,management,0.0,23.6,7.9,15.7,35.9,1,1,0
+Pascal Siakam,2025-26,2026-04-05,IND,ankle,sprain,0.0,24.6,8.9,15.7,35.5,5,8,0
+Myles Turner,2025-26,2026-04-12,MIL,ankle,sprain,0.0,26.6,11.0,15.7,35.9,1,1,0
+Marvin Bagley III,2025-26,2026-04-12,DAL,shoulder,tendinopathy,0.0,35.2,19.5,15.7,35.9,1,1,0
+Franz Wagner,2021-22,2022-04-06,ORL,ankle,sprain,0.0,29.3,13.8,15.5,35.4,2,4,0
+Collin Sexton,2023-24,2024-04-11,UTA,systemic,illness,0.0,22.8,7.3,15.5,35.4,3,4,0
+Cam Thomas,2024-25,2025-03-15,BKN,hamstring,strain,0.0,25.5,10.1,15.5,34.7,16,30,0
+Terance Mann,2025-26,2026-04-05,BKN,knee_ligament,soreness,0.0,33.6,18.1,15.5,35.2,5,8,0
+Miles Bridges,2023-24,2024-04-14,CHA,hand_wrist,contusion,0.0,25.5,10.0,15.4,35.3,1,1,0
+Lauri Markkanen,2025-26,2026-02-26,UTA,ankle,sprain,0.0,26.7,11.4,15.3,33.8,24,46,0
+Cam Spencer,2025-26,2026-04-08,MEM,back_core,soreness,0.0,26.7,11.4,15.3,34.9,3,5,0
+Jaden Hardy,2025-26,2026-04-09,WAS,back_core,soreness,0.0,24.5,9.2,15.3,35.1,1,1,0
+Anfernee Simons,2024-25,2025-04-01,POR,elbow_arm,contusion,0.02,22.0,6.7,15.2,34.6,7,13,0
+Rodney McGruder,2021-22,2022-04-05,DET,hip_groin,strain,0.0,29.3,14.2,15.1,34.6,1,2,1
+Brandon Miller,2023-24,2024-04-14,CHA,hand_wrist,sprain,0.0,29.3,14.3,15.0,34.3,1,1,0
+Zach Collins,2022-23,2023-04-09,SAS,hand_wrist,contusion,0.0,24.5,9.6,14.9,34.1,1,1,0
+Devin Vassell,2023-24,2024-04-02,SAS,foot,fracture,0.0,41.8,26.9,14.9,33.8,7,13,0
+Bradley Beal,2022-23,2023-03-22,WAS,knee,soreness,0.1,19.7,4.9,14.8,33.3,10,19,0
+Santi Aldama,2023-24,2024-04-05,MEM,foot,soreness,0.0,26.7,12.0,14.7,33.4,6,10,0
+Tyrese Maxey,2024-25,2025-03-04,PHI,back_core,sprain,0.11,24.6,10.0,14.7,32.2,22,41,0
+Nerlens Noel,2021-22,2022-03-08,NYK,foot,soreness,0.07,41.2,26.6,14.6,32.9,17,33,0
+Lauri Markkanen,2022-23,2023-03-29,UTA,hand_wrist,contusion,0.24,21.0,6.4,14.6,33.0,2,4,1
+Kyle Filipowski,2025-26,2026-04-10,UTA,back_core,management,0.0,26.1,11.5,14.6,33.5,2,3,0
+Keldon Johnson,2023-24,2024-04-09,SAS,foot,sprain,0.0,27.6,13.2,14.5,33.1,4,6,0
+Ziaire Williams,2024-25,2025-04-11,BKN,knee_ligament,tendinopathy,0.0,43.7,29.2,14.5,33.1,2,3,0
+Zach LaVine,2025-26,2026-02-07,SAC,hand_wrist,soreness,0.0,23.7,9.2,14.5,32.8,29,65,0
+Nic Claxton,2025-26,2026-04-05,BKN,hand_wrist,soreness,0.0,26.9,12.4,14.5,33.0,5,8,0
+Walker Kessler,2024-25,2025-04-04,UTA,head_face,fracture,0.0,30.8,16.4,14.4,32.9,5,10,0
+DeMar DeRozan,2025-26,2026-04-07,SAC,hamstring,soreness,0.0,21.0,6.6,14.4,33.0,3,6,0
+Isaiah Stewart,2023-24,2024-03-20,DET,hamstring,strain,0.0,28.0,13.7,14.3,32.2,15,26,0
+Bilal Coulibaly,2025-26,2026-04-09,WAS,unknown,tendinopathy,0.0,22.6,8.4,14.2,32.5,1,1,1
+Anthony Gill,2024-25,2025-04-09,WAS,hamstring,soreness,0.0,26.2,12.1,14.1,32.2,3,5,0
+Myles Turner,2025-26,2026-04-07,MIL,ankle,sprain,0.0,25.6,11.6,14.1,32.1,1,1,0
+Josh Minott,2025-26,2026-04-09,BKN,ankle,soreness,0.0,28.8,14.6,14.1,32.3,3,4,0
+Matas Buzelis,2025-26,2026-04-12,CHI,ankle,sprain,0.0,27.2,13.2,14.1,32.2,1,1,0
+Kris Dunn,2023-24,2024-04-07,UTA,foot,tendinopathy,0.0,31.7,17.8,13.9,31.7,5,8,0
+Marvin Bagley III,2021-22,2022-03-31,DET,hip_groin,strain,0.0,28.1,14.3,13.8,31.4,5,10,0
+Kris Dunn,2021-22,2022-04-07,POR,ankle,sprain,0.0,25.7,11.9,13.8,31.6,2,3,0
+T.J. McConnell,2022-23,2023-04-07,IND,hip_groin,soreness,0.0,23.1,9.3,13.8,31.5,2,3,0
+Delon Wright,2022-23,2023-04-09,WAS,knee,soreness,0.0,32.5,18.8,13.8,31.5,1,1,0
+Ja Morant,2025-26,2026-01-23,MEM,elbow_arm,sprain,0.23,30.8,17.0,13.8,29.8,40,80,0
+Kyshawn George,2025-26,2026-03-03,WAS,elbow_arm,sprain,0.0,29.9,16.0,13.8,30.5,22,41,0
+Eric Gordon,2021-22,2022-03-27,HOU,hip_groin,soreness,0.0,22.6,8.9,13.7,31.2,7,14,0
+Thomas Bryant,2021-22,2022-04-09,WAS,back_core,soreness,0.0,30.1,16.4,13.7,31.3,1,1,0
+Keldon Johnson,2022-23,2023-04-08,SAS,foot,sprain,0.0,21.5,7.8,13.7,31.3,2,2,0
+Daniel Gafford,2025-26,2026-04-07,DAL,shoulder,tendinopathy,0.0,25.1,11.3,13.7,31.3,4,6,0
+Jusuf Nurkić,2022-23,2023-03-24,POR,knee,soreness,0.01,23.7,10.0,13.6,30.5,10,17,0
+Talen Horton-Tucker,2022-23,2023-04-06,UTA,ankle,soreness,0.0,18.8,5.2,13.6,31.0,3,4,0
+Maxi Kleber,2022-23,2023-04-07,DAL,hamstring,recovery,0.13,25.8,12.2,13.6,31.0,2,3,0
+Keyonte George,2025-26,2026-03-13,UTA,hamstring,strain,0.0,29.8,16.2,13.6,30.8,16,31,0
+Josh Hart,2021-22,2022-03-20,POR,knee_ligament,tendinopathy,0.1,22.3,8.9,13.5,30.0,12,21,0
+Julius Randle,2021-22,2022-04-01,NYK,quad,soreness,0.0,21.3,7.8,13.5,30.8,5,9,0
+Scottie Barnes,2023-24,2024-03-03,TOR,hand_wrist,fracture,0.07,38.7,25.2,13.5,30.2,22,43,0
+Marvin Bagley III,2023-24,2024-04-03,WAS,knee,sprain,0.0,45.0,31.5,13.5,30.8,6,12,0
+Jalen Duren,2023-24,2024-04-12,DET,back_core,soreness,0.0,22.1,8.6,13.5,30.9,2,3,0
+D'Angelo Russell,2024-25,2025-04-06,BKN,ankle,soreness,0.0,29.7,16.2,13.5,30.7,5,8,0
+Cory Joseph,2021-22,2022-03-31,DET,back_core,strain,0.0,25.8,12.5,13.3,30.3,5,10,0
+Kelly Oubre Jr.,2022-23,2023-03-24,CHA,shoulder,strain,0.0,26.7,13.5,13.2,30.2,8,17,0
+Lauri Markkanen,2024-25,2025-03-25,UTA,systemic,illness,0.0,21.7,8.5,13.2,30.0,10,20,0
+Marvin Bagley III,2022-23,2023-04-04,DET,head_face,concussion,0.0,22.6,9.5,13.1,29.9,2,3,1
+Moritz Wagner,2022-23,2023-04-07,ORL,ankle,sprain,0.0,30.9,17.8,13.1,30.0,2,3,0
+Daniel Gafford,2022-23,2023-04-09,WAS,ankle,soreness,0.0,22.3,9.2,13.1,30.1,1,1,0
+Paul George,2024-25,2025-03-06,PHI,hip_groin,soreness,0.06,18.0,5.0,13.1,28.4,21,39,0
+John Collins,2024-25,2025-03-14,UTA,ankle,sprain,0.0,23.6,10.5,13.1,29.5,16,31,0
+CJ McCollum,2024-25,2025-03-28,NOP,foot,contusion,0.0,21.5,8.4,13.1,29.6,9,17,0
+Mark Williams,2024-25,2025-04-09,CHA,foot,management,0.0,19.1,6.1,13.0,29.6,1,1,0
+Ziaire Williams,2025-26,2026-04-05,BKN,foot,soreness,0.0,25.2,12.3,13.0,29.4,5,8,0
+Goga Bitadze,2021-22,2022-04-04,IND,foot,soreness,0.0,24.1,11.2,12.9,29.4,3,6,0
+Jaren Jackson Jr.,2023-24,2024-04-05,MEM,quad,tendinopathy,0.0,18.5,5.7,12.9,29.2,6,10,0
+Kyle Kuzma,2025-26,2026-04-07,MIL,achilles,tendinopathy,0.0,30.7,17.7,12.9,29.5,1,1,0
+Domantas Sabonis,2021-22,2022-03-22,SAC,knee,contusion,0.0,19.5,6.8,12.7,28.8,8,18,0
+Cedi Osman,2023-24,2024-04-05,SAS,ankle,sprain,0.0,27.5,14.8,12.7,28.8,6,10,0
+Ben Sheppard,2025-26,2026-04-05,IND,hip_groin,sprain,0.0,26.6,13.8,12.7,29.0,5,8,0
+Gary Harris,2025-26,2026-04-12,MIL,hip_groin,soreness,0.0,30.5,17.8,12.7,28.9,1,1,0
+Terry Rozier,2022-23,2023-03-24,CHA,foot,soreness,0.0,20.6,8.0,12.6,28.9,8,17,0
+Monté Morris,2022-23,2023-04-02,WAS,ankle,soreness,0.0,24.5,11.9,12.6,28.8,5,8,0
+Dennis Smith Jr.,2023-24,2024-04-01,BKN,hip_groin,soreness,0.0,26.4,13.9,12.6,28.6,8,14,0
+De'Aaron Fox,2024-25,2025-03-14,SAS,hand_wrist,surgery,0.01,31.0,18.4,12.6,28.1,18,31,0
+LeBron James,2021-22,2022-04-02,LAL,ankle,sprain,0.09,15.4,2.9,12.5,28.3,5,8,0
+Lamar Stevens,2023-24,2024-04-12,MEM,hip_groin,strain,0.0,22.9,10.4,12.5,28.6,2,3,0
+Khris Middleton,2024-25,2025-03-29,WAS,knee,soreness,0.0,22.6,10.1,12.5,28.1,9,16,0
+Naji Marshall,2025-26,2026-04-10,DAL,hip_groin,contusion,0.0,19.9,7.4,12.5,28.7,2,3,0
+Justise Winslow,2021-22,2022-03-24,POR,lower_leg,tendinopathy,0.02,29.0,16.6,12.4,28.1,10,17,0
+Darius Bazley,2021-22,2022-03-27,OKC,knee,sprain,0.0,25.6,13.2,12.4,28.1,8,14,0
+Jalen Suggs,2021-22,2022-04-09,ORL,ankle,contusion,0.0,28.9,16.5,12.4,28.5,1,1,0
+RJ Barrett,2023-24,2024-04-10,TOR,knee,management,0.0,17.2,4.8,12.4,28.3,1,2,1
+Davis Bertans,2023-24,2024-04-14,CHA,achilles,soreness,0.0,23.9,11.4,12.4,28.5,1,1,0
+Jalen Smith,2022-23,2023-04-07,IND,knee,soreness,0.0,25.2,12.9,12.3,28.1,2,3,0
+Anfernee Simons,2023-24,2024-03-25,POR,knee,tendinopathy,0.0,30.9,18.7,12.3,27.8,11,21,0
+Moussa Diabaté,2024-25,2025-04-09,CHA,systemic,illness,0.0,19.2,7.0,12.3,28.1,2,3,0
+Pascal Siakam,2025-26,2026-03-10,IND,knee,sprain,0.0,23.9,11.6,12.3,27.6,6,11,1
+Aaron Nesmith,2025-26,2026-03-29,IND,neck,strain,0.0,20.3,8.0,12.3,27.8,8,15,0
+Jalen Green,2022-23,2023-02-24,HOU,hip_groin,strain,0.0,26.1,13.9,12.2,26.9,2,4,1
+Josh Green,2024-25,2025-04-04,CHA,shoulder,soreness,0.0,28.7,16.6,12.2,27.8,6,10,0
+JT Thor,2024-25,2025-04-13,WAS,knee,soreness,0.0,34.8,22.7,12.2,27.8,1,1,0
+Alex Len,2021-22,2022-04-02,SAC,back_core,soreness,0.0,26.1,14.0,12.1,27.6,3,7,0
+Steven Adams,2023-24,2024-02-09,HOU,unknown,surgery,0.15,48.4,36.3,12.1,26.7,32,66,0
+Olivier-Maxence Prosper,2025-26,2026-04-08,MEM,ankle,soreness,0.0,20.8,8.7,12.1,27.7,3,5,0
+Alperen Sengun,2023-24,2024-03-12,HOU,ankle,sprain,0.04,18.7,6.8,12.0,26.5,18,34,0
+Jeremy Sochan,2023-24,2024-03-31,SAS,ankle,tendinopathy,0.0,22.3,10.5,11.9,26.9,8,15,0
+Walter Clayton Jr.,2025-26,2026-04-10,MEM,hip_groin,soreness,0.0,23.8,11.9,11.9,27.3,2,3,0
+Jarace Walker,2025-26,2026-04-12,IND,foot,sprain,0.0,22.9,11.0,11.9,27.3,1,1,0
+Kristaps Porziņģis,2022-23,2023-04-02,WAS,systemic,illness,0.0,16.3,4.6,11.8,26.7,5,8,0
+Ivica Zubac,2025-26,2026-03-21,IND,back_core,fracture,0.0,41.7,30.0,11.7,26.4,12,23,0
+Russell Westbrook,2025-26,2026-03-22,SAC,foot,soreness,0.0,20.1,8.4,11.7,26.6,11,22,0
+Tyrese Haliburton,2022-23,2023-03-27,IND,ankle,sprain,0.02,16.8,5.2,11.6,26.5,7,14,0
+Hamidou Diallo,2021-22,2022-03-10,DET,hand_wrist,sprain,0.0,29.6,18.1,11.5,26.0,16,31,0
+Nick Smith Jr.,2024-25,2025-04-13,CHA,hip_groin,soreness,0.0,23.3,11.8,11.5,26.4,1,1,0
+Jalen Smith,2025-26,2026-02-24,CHI,lower_leg,strain,0.04,25.7,14.4,11.4,25.2,5,12,1
+T.J. McConnell,2025-26,2026-04-01,IND,hamstring,soreness,0.0,21.4,10.0,11.4,26.0,7,12,0
+Dennis Smith Jr.,2022-23,2023-03-31,CHA,foot,sprain,0.0,21.9,10.6,11.3,25.7,5,10,0
+Jakob Pöltl,2023-24,2024-03-05,TOR,hand_wrist,dislocation,0.02,34.1,22.8,11.3,25.4,21,41,0
+Cam Reddish,2021-22,2022-03-08,NYK,shoulder,sprain,0.07,28.2,17.0,11.2,25.2,17,33,0
+Luka Dončić,2022-23,2023-04-09,DAL,quad,recovery,0.0,22.6,11.4,11.2,25.7,1,1,0
+Landry Shamet,2023-24,2024-03-12,WAS,lower_leg,strain,0.0,29.3,18.1,11.2,25.2,18,34,0
+Jerami Grant,2023-24,2024-03-13,POR,hamstring,strain,0.0,18.4,7.2,11.2,24.9,18,33,0
+Anfernee Simons,2025-26,2026-02-22,CHI,hand_wrist,sprain,0.12,28.2,17.0,11.2,24.7,25,50,0
+Frank Ntilikina,2022-23,2023-03-29,DAL,knee,sprain,0.36,39.0,27.9,11.1,25.3,3,5,0
+John Collins,2023-24,2024-03-31,UTA,back_core,soreness,0.0,17.5,6.4,11.1,25.0,8,15,0
+Jalen Smith,2025-26,2026-03-27,CHI,lower_leg,strain,0.0,34.5,23.4,11.1,25.2,10,17,0
+Christian Wood,2021-22,2022-03-27,HOU,hamstring,soreness,0.0,17.6,6.6,11.0,25.2,7,14,0
+Day'Ron Sharpe,2024-25,2025-03-26,BKN,knee,sprain,0.0,26.1,15.1,11.0,25.1,10,19,0
+Luke Kennard,2023-24,2024-04-05,MEM,knee,soreness,0.0,16.3,5.5,10.9,24.7,6,10,0
+Cameron Johnson,2024-25,2025-03-31,BKN,back_core,contusion,0.0,17.4,6.5,10.9,24.8,7,14,0
+Richaun Holmes,2024-25,2025-04-03,WAS,shoulder,strain,0.0,23.5,12.6,10.9,24.7,6,11,0
+Kyle Kuzma,2021-22,2022-03-20,WAS,knee,tendinopathy,0.01,17.1,6.3,10.8,23.8,12,21,0
+Bobby Portis,2025-26,2026-03-25,MIL,hand_wrist,sprain,0.0,24.6,13.8,10.8,24.5,11,19,0
+Josh Giddey,2024-25,2025-04-08,CHI,unknown,unknown,1.0,5.6,8.1,-2.5,-5.6,1,1,1
+Malik Fitts,2021-22,2022-01-07,UTA,hand_wrist,unknown,1.0,29.0,31.6,-2.6,-5.8,3,5,0
+Isaiah Stewart,2024-25,2025-04-10,DET,knee,tendinopathy,1.0,7.2,9.8,-2.6,-5.9,3,9,1
+Ja Morant,2024-25,2025-04-13,MEM,shoulder,soreness,1.0,7.2,9.9,-2.6,-6.0,1,7,1
+Tyler Herro,2025-26,2025-10-22,MIA,ankle,surgery,0.46,22.5,25.0,-2.6,-5.5,17,33,1
+Jared McCain,2025-26,2025-10-22,PHI,hand_wrist,surgery,0.97,22.6,25.2,-2.6,-5.6,6,13,1
+Gordon Hayward,2021-22,2022-04-06,CHA,foot,soreness,1.0,11.3,14.0,-2.7,-6.2,3,4,0
+Bogdan Bogdanović,2022-23,2023-04-09,ATL,knee,soreness,1.0,6.3,9.0,-2.7,-6.2,1,6,1
+Julius Randle,2023-24,2024-01-29,NYK,shoulder,dislocation,1.0,20.2,22.9,-2.7,-6.1,49,112,0
+Derrick Jones Jr.,2023-24,2024-04-14,DAL,shoulder,sprain,1.0,11.9,14.6,-2.7,-6.1,1,7,1
+Ariel Hukporti,2024-25,2025-02-28,NYK,knee_ligament,unknown,1.0,33.3,35.9,-2.7,-5.9,24,45,0
+P.J. Washington,2024-25,2025-04-13,DAL,ankle,sprain,1.0,10.6,13.4,-2.7,-6.3,1,1,0
+Amari Williams,2025-26,2025-12-11,BOS,hand_wrist,fracture,1.0,36.0,38.7,-2.7,-5.9,1,1,0
+Nikola Vučević,2025-26,2026-03-08,BOS,hand_wrist,fracture,1.0,12.9,15.6,-2.7,-6.0,14,28,1
+Landry Shamet,2025-26,2026-03-22,NYK,knee,soreness,1.0,8.2,10.9,-2.7,-6.1,5,10,1
+De'Anthony Melton,2025-26,2026-04-01,GSW,hand_wrist,strain,1.0,9.0,11.6,-2.7,-6.0,1,1,1
+Keon Johnson,2021-22,2021-11-12,LAC,ankle,sprain,1.0,63.6,66.4,-2.8,-6.2,4,6,0
+Davion Mitchell,2022-23,2023-04-09,SAC,knee,soreness,1.0,5.7,8.6,-2.8,-6.6,1,6,1
+Chris Livingston,2024-25,2024-12-04,MIL,ankle,sprain,0.99,25.5,28.4,-2.8,-6.0,1,1,0
+Cam Spencer,2024-25,2025-01-11,MEM,hand_wrist,fracture,1.0,25.4,28.2,-2.8,-6.1,15,32,0
+Colby Jones,2024-25,2025-03-08,WAS,achilles,tendinopathy,0.0,22.1,24.9,-2.8,-5.9,2,3,1
+Mark Williams,2025-26,2026-03-05,PHX,foot,fracture,1.0,24.7,27.5,-2.8,-6.1,15,28,1
+Jaylon Tyson,2025-26,2026-03-21,CLE,foot,sprain,1.0,10.9,13.7,-2.8,-6.1,10,20,1
+Jerami Grant,2025-26,2026-03-29,POR,lower_leg,strain,1.0,8.7,11.5,-2.8,-6.5,7,21,1
+Peyton Watson,2022-23,2022-12-23,DEN,ankle,sprain,1.0,34.2,37.0,-2.9,-6.4,1,1,0
+Zeke Nnaji,2022-23,2023-04-02,DEN,knee,sprain,1.0,9.3,12.2,-2.9,-6.5,2,4,1
+Jett Howard,2023-24,2023-12-01,ORL,ankle,sprain,1.0,24.7,27.6,-2.9,-6.2,1,1,0
+Tyler Herro,2023-24,2024-02-26,MIA,knee,dislocation,1.0,13.4,16.3,-2.9,-6.1,20,39,1
+Seth Lundy,2023-24,2024-04-09,ATL,ankle,soreness,1.0,39.9,42.8,-2.9,-6.7,4,6,0
+Gary Payton II,2024-25,2025-03-28,GSW,hand_wrist,rupture_tear,1.0,15.5,18.4,-2.9,-6.5,4,7,1
+Will Richard,2025-26,2026-03-29,GSW,foot,soreness,1.0,4.6,7.5,-2.9,-6.4,1,3,1
+David Jones Garcia,2025-26,2026-04-04,SAS,ankle,surgery,1.0,45.6,48.4,-2.9,-6.5,5,9,0
+Anthony Edwards,2025-26,2026-04-05,MIN,knee_ligament,soreness,1.0,9.1,12.0,-2.9,-6.4,2,3,0
+Romeo Langford,2021-22,2022-02-24,SAS,hip_groin,soreness,0.26,16.6,19.7,-3.0,-6.7,3,4,0
+Aaron Nesmith,2021-22,2022-03-05,BOS,ankle,sprain,1.0,16.1,19.1,-3.0,-6.9,8,17,1
+Jarrett Allen,2021-22,2022-03-07,CLE,hand_wrist,fracture,1.0,20.7,23.7,-3.0,-6.8,18,34,0
+Georges Niang,2021-22,2022-04-08,PHI,knee_ligament,tendinopathy,1.0,10.7,13.7,-3.0,-6.8,2,7,1
+Keldon Johnson,2021-22,2022-04-08,SAS,knee,soreness,1.0,9.2,12.2,-3.0,-6.8,1,1,1
+Coby White,2021-22,2022-04-09,CHI,foot,sprain,1.0,7.5,10.6,-3.0,-7.0,1,7,1
+Moses Moody,2025-26,2026-03-25,GSW,knee_ligament,rupture_tear,1.0,61.5,64.5,-3.0,-6.7,10,19,0
+Anthony Edwards,2021-22,2022-03-03,MIN,knee_ligament,tendinopathy,1.0,12.1,15.2,-3.1,-6.9,3,5,1
+Brandon Ingram,2021-22,2022-04-06,NOP,hamstring,soreness,1.0,7.6,10.7,-3.1,-6.9,3,10,1
+Devin Vassell,2021-22,2022-04-08,SAS,foot,soreness,1.0,10.9,14.0,-3.1,-7.2,1,1,1
+JD Davison,2022-23,2022-11-23,BOS,ankle,sprain,1.0,23.0,26.2,-3.1,-6.8,1,2,1
+Seth Lundy,2023-24,2023-12-29,ATL,ankle,sprain,0.27,29.7,32.8,-3.1,-6.7,2,3,0
+Colin Castleton,2023-24,2024-03-02,LAL,hand_wrist,fracture,0.98,40.6,43.8,-3.1,-7.1,11,25,1
+Adam Flagler,2024-25,2024-11-29,OKC,hand_wrist,contusion,1.0,15.6,18.7,-3.1,-6.8,1,1,0
+Ron Harper Jr.,2025-26,2025-12-11,BOS,knee,sprain,1.0,39.4,42.5,-3.1,-6.6,1,1,0
+Yves Pons,2021-22,2022-01-05,MEM,ankle,soreness,1.0,21.7,24.9,-3.2,-7.3,2,3,0
+Pat Connaughton,2021-22,2022-02-13,MIL,hand_wrist,fracture,1.0,12.9,16.1,-3.2,-7.1,13,33,1
+Usman Garuba,2021-22,2022-03-17,HOU,ankle,sprain,0.0,15.0,18.2,-3.2,-7.1,3,5,1
+Rayan Rupert,2023-24,2024-02-15,POR,ankle,sprain,0.0,24.0,27.2,-3.2,-6.9,4,15,1
+Chris Livingston,2023-24,2024-03-17,MIL,ankle,sprain,1.0,29.0,32.2,-3.2,-7.2,1,1,0
+Bronny James,2024-25,2024-11-19,LAL,foot,contusion,1.0,19.7,22.9,-3.2,-7.0,10,19,1
+Ariel Hukporti,2024-25,2024-12-11,NYK,ankle,sprain,1.0,18.7,21.9,-3.2,-6.9,2,8,1
+Rui Hachimura,2024-25,2025-04-08,LAL,knee_ligament,tendinopathy,1.0,7.0,10.2,-3.2,-7.3,1,1,1
+Rasheer Fleming,2025-26,2025-11-21,PHX,ankle,sprain,1.0,22.2,25.4,-3.2,-7.1,2,3,1
+Jeremiah Robinson-Earl,2021-22,2022-02-03,OKC,foot,fracture,0.03,31.0,34.3,-3.3,-7.4,24,52,1
+Duane Washington Jr.,2022-23,2022-12-05,PHX,hip_groin,unknown,1.0,14.4,17.8,-3.3,-7.4,8,15,1
+Danté Exum,2023-24,2024-04-14,DAL,foot,sprain,1.0,14.4,17.7,-3.3,-7.6,1,7,1
+Vince Williams Jr.,2024-25,2024-10-23,MEM,lower_leg,fracture,1.0,22.4,25.7,-3.3,-7.2,12,23,1
+Chris Paul,2021-22,2022-02-23,PHX,hand_wrist,rupture_tear,1.0,13.6,16.9,-3.4,-7.4,15,28,1
+OG Anunoby,2021-22,2022-02-24,TOR,hand_wrist,fracture,1.0,13.5,16.9,-3.4,-7.4,15,27,1
+Adam Flagler,2024-25,2024-12-10,OKC,hand_wrist,fracture,1.0,31.3,34.8,-3.4,-7.4,2,5,0
+Patrick Baldwin Jr.,2022-23,2022-10-18,GSW,hand_wrist,sprain,1.0,40.3,43.7,-3.5,-7.4,3,6,0
+Neemias Queta,2023-24,2024-03-03,BOS,knee,dislocation,1.0,32.0,35.5,-3.5,-7.7,4,8,1
+Pete Nance,2024-25,2025-03-01,MIL,ankle,sprain,1.0,19.7,23.2,-3.5,-7.6,6,12,1
+Jaylen Wells,2024-25,2025-04-10,MEM,hand_wrist,fracture,1.0,19.1,22.6,-3.5,-8.0,7,17,0
+JD Davison,2023-24,2024-03-30,BOS,ankle,sprain,1.0,35.2,38.8,-3.6,-8.2,2,3,0
+Isaiah Stevens,2024-25,2025-04-05,MIA,foot,soreness,1.0,47.5,51.1,-3.6,-8.2,5,9,0
+Dyson Daniels,2023-24,2024-03-28,NOP,knee,recovery,1.0,22.7,26.4,-3.7,-8.3,1,2,1
+Alex Ducas,2024-25,2024-12-14,OKC,back_core,sprain,1.0,28.5,32.1,-3.7,-7.8,1,1,0
+Josh Hart,2025-26,2026-03-20,NYK,knee_ligament,unknown,1.0,11.5,15.2,-3.7,-8.3,1,2,1
+Theo Pinson,2021-22,2022-02-14,DAL,hand_wrist,fracture,1.0,29.2,33.1,-3.8,-8.5,22,50,1
+Alec Burks,2022-23,2022-10-19,DET,foot,fracture,0.97,23.3,27.1,-3.8,-8.2,12,23,1
+Javon Freeman-Liberty,2023-24,2023-11-19,TOR,ankle,sprain,0.62,65.1,68.9,-3.8,-8.2,1,1,0
+Vernon Carey Jr.,2021-22,2022-03-17,WAS,lower_leg,strain,0.01,31.9,35.8,-3.9,-8.8,12,21,1
+Kira Lewis Jr.,2022-23,2022-10-19,NOP,knee_ligament,recovery,0.96,47.4,51.3,-3.9,-8.3,13,25,0
+Sidy Cissoko,2024-25,2025-04-03,POR,ankle,sprain,0.03,33.9,37.8,-3.9,-8.8,2,2,0
+Thomas Sorber,2025-26,2025-10-21,OKC,knee_ligament,surgery,1.0,85.1,89.0,-3.9,-8.4,97,222,0
+Jalen Johnson,2023-24,2024-04-10,ATL,ankle,sprain,1.0,13.8,17.8,-4.0,-9.1,3,5,0
+Jamal Murray,2021-22,2022-03-19,DEN,knee,recovery,1.0,31.7,35.8,-4.1,-9.4,16,39,0
+Isaiah Crawford,2025-26,2025-10-21,HOU,ankle,sprain,1.0,28.9,33.1,-4.1,-8.8,2,4,0
+Victor Oladipo,2021-22,2022-03-02,MIA,knee,recovery,1.0,25.1,29.3,-4.2,-9.5,2,4,1
+John Butler Jr.,2022-23,2022-11-09,POR,hand_wrist,soreness,1.0,21.6,25.8,-4.2,-9.1,1,1,0
+Robert Williams III,2021-22,2022-03-27,BOS,knee_ligament,rupture_tear,1.0,29.2,33.5,-4.3,-9.8,9,26,1
+Seth Lundy,2024-25,2024-12-14,ATL,ankle,sprain,0.99,40.0,44.3,-4.3,-9.5,1,1,0
+Ausar Thompson,2024-25,2025-04-13,DET,knee_ligament,tendinopathy,1.0,13.5,17.8,-4.3,-9.9,1,6,1
+Rui Hachimura,2024-25,2025-04-13,LAL,knee_ligament,tendinopathy,1.0,10.3,14.9,-4.5,-10.4,1,6,1
+Johnny Juzang,2022-23,2022-11-23,UTA,hand_wrist,sprain,0.98,62.3,67.0,-4.7,-10.7,9,17,0
+Chris Livingston,2023-24,2023-12-11,MIL,ankle,sprain,1.0,20.1,24.8,-4.7,-10.2,2,5,1
+Andrew Wiggins,2024-25,2025-04-13,MIA,hamstring,tendinopathy,1.0,13.8,18.5,-4.7,-10.9,1,7,1
+Udoka Azubuike,2021-22,2021-11-28,UTA,ankle,unknown,1.0,33.0,38.1,-5.1,-11.1,17,37,1
+Javonte Green,2022-23,2023-04-04,CHI,knee,surgery,1.0,17.9,23.0,-5.1,-11.6,1,1,0
+Franz Wagner,2024-25,2025-04-11,ORL,knee,soreness,1.0,14.4,19.7,-5.3,-12.0,2,9,1
+Dereck Lively II,2024-25,2025-04-13,DAL,ankle,fracture,1.0,27.1,33.8,-6.7,-15.2,1,1,0
+Danny Wolf,2025-26,2025-11-02,BKN,ankle,sprain,0.0,33.4,41.4,-8.0,-17.2,1,1,1
+Jonathan Kuminga,2021-22,2021-10-18,GSW,knee_ligament,strain,1.0,60.0,68.5,-8.4,-18.1,5,11,1
+Cam Spencer,2024-25,2024-10-23,MEM,ankle,sprain,1.0,51.9,61.7,-9.8,-21.1,15,28,1
+Isaiah Collier,2024-25,2024-10-23,UTA,hamstring,strain,1.0,45.2,58.2,-13.0,-27.6,7,15,1

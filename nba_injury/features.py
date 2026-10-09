@@ -341,6 +341,17 @@ def build_index_features(spells: pl.DataFrame) -> pl.DataFrame:
         (pl.col("days_rest") == 1).fill_null(False).alias("start_on_b2b"),
         pl.col("season").str.slice(0, 4).cast(pl.Int32).alias("season_start_year"),
     ).with_columns(
+        # A spell starting on the team's opening night has no standings row to
+        # join to -- a team with no games played has no record. On that night
+        # every team's hope is simply the league base rate: twenty of thirty
+        # teams reach the play-in.
+        pl.col("hope_at_onset").fill_null(standings.PLAYIN_SEEDS * 2 / 30).alias("hope_at_onset"),
+        pl.col("stakes_at_onset").fill_null(
+            4 * (standings.PLAYIN_SEEDS * 2 / 30) * (1 - standings.PLAYIN_SEEDS * 2 / 30)
+        ).alias("stakes_at_onset"),
+        pl.col("eliminated_at_onset").fill_null(False).alias("eliminated_at_onset"),
+        pl.col("clinched_at_onset").fill_null(False).alias("clinched_at_onset"),
+        pl.col("wins_vs_playin_at_onset").fill_null(0).alias("wins_vs_playin_at_onset"),
         (pl.col("season_start_year") - pl.col("draft_year")).alias("years_since_draft"),
         (pl.col("career_minutes") / pl.col("career_games")).alias("career_min_per_game"),
         (pl.col("min_roll5") - pl.col("min_roll10")).alias("min_trend"),

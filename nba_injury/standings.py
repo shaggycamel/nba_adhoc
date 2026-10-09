@@ -23,20 +23,21 @@ the "eliminated" window contains only teams that really were out.
 
 A caveat that shapes the whole design
 -------------------------------------
-Mathematical elimination turns out to be a *lagging* indicator, and that
-breaks the clean regression-discontinuity story. Measured over the ten team
-games either side of the elimination date, the return hazard declines
-steadily from about 0.17 to about 0.10 *before* the date and then stays
-there: there is no break at zero. Teams know they are finished weeks before
-arithmetic confirms it, and they act on it, so the treatment is anticipated
-and the discontinuity is smeared out.
+Mathematical elimination is a *lagging* indicator, which limits how much a
+regression discontinuity can see. There is a level shift at the date — over
+the twelve team games either side, the return hazard is flat beforehand at
+about 0.13 and falls to 0.06 after, a difference of -0.039 with a bootstrap
+interval excluding zero — but it is modest, because elimination arrives so
+late that most of the behavioural response has already happened as the
+team's playoff hopes faded. (At one-game resolution the pre-period looks
+like it is already declining; that is noise, and it disappears once the
+buckets are wide enough to estimate.)
 
-The usable treatment is therefore how much playoff hope a team has left,
-not whether its hope is exactly zero. `playin_probability` below estimates
-that from the standings, and the identifying comparison becomes a
-dose-response on hope with the early season — when everyone still has hope —
-as the control. That is weaker causally than a sharp discontinuity and far
-better powered.
+So playoff hope, not the elimination date, carries most of the identifying
+variation. `playin_probability` below estimates it from the standings, and
+the main comparison becomes hope crossed with the half of the season — the
+early season, when everyone still has hope, is the control period. That is
+weaker causally than a sharp discontinuity and much better powered.
 """
 
 from __future__ import annotations

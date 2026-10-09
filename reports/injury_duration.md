@@ -7,9 +7,12 @@ Modelling the *duration* of an injury absence from the per-game injury report
    miss?
 2. **In progress** — they have missed *k* games. Do they play the next one?
 
+Section 7 then asks how much of an absence is the injury at all, and how much
+is the team's situation.
+
 Everything below is scored on time-based splits: fit on 2021-22..2023-24, tune
 on 2024-25, refit, score 2025-26. Reproduce with
-`uv run python scripts/0{1..5}_*.py`.
+`uv run python scripts/0{1..7}_*.py`.
 
 ---
 
@@ -358,11 +361,24 @@ rotation". The rotation-player split above is the honest reading. Restricting
 the training population, or modelling absence and rotation separately, is the
 obvious next step.
 
-**Censoring is informative, not independent.** Season-end censoring is
-plausibly independent of the injury, but G League assignment and trades are
-not — a team moves a player partly *because* he is hurt. Kaplan-Meier and the
-hazard model both assume independent censoring, so the long tail is, if
-anything, still understated.
+**Censoring is informative, not independent — and not in one direction.**
+An earlier version of this section claimed season-end censoring was
+"plausibly independent of the injury", so that the long tail was "if anything
+still understated". That was wrong, and the correction matters because it
+changes the sign of the bias rather than its size.
+
+Season-end censoring is strongly related to the team's incentive. Among
+spells starting in the last 20% of a season, 43% run to season end on teams
+below .350 against 20% on teams at .500 or better — for the same diagnoses.
+And the per-game return hazard splits three ways by the team's playoff
+position: 0.262 once a play-in place is clinched, 0.152 in contention, 0.084
+once mathematically eliminated. Some season-end-censored spells are therefore
+shutdowns whose *medical* duration was shorter than the censoring time, which
+pushes the Kaplan-Meier tail the other way.
+
+So the tail is inflated by team decisions and deflated by independent
+censoring at once, and the net is not knowable from the duration data alone.
+Section 7 takes this apart.
 
 **Only five seasons.** 39 spells carry the catastrophic flag. Any statement
 about ACL and Achilles duration here rests on dozens of cases, not hundreds.
@@ -372,6 +388,141 @@ report row, bracketed by reported absences, are bridged; longer gaps are not.
 Reconditioning filings continue a spell; G League assignment censors it.
 Reasonable alternatives would move the numbers somewhat. The rules are in
 `nba_injury/spells.py` with the reasoning for each.
+
+---
+
+## 7. How much of an absence is the injury, and how much is the team?
+
+A team's playoff position changes what it wants from a borderline player and
+cannot change how a torn ligament heals. That asymmetry is the whole design:
+variation in playoff position, holding the diagnosis and the player's role
+fixed, moves team *willingness* and not medical *readiness*.
+
+Mathematical elimination and clinch dates come from daily conference
+standings; playoff hope is simulated by playing out the rest of each
+conference's season from the standings on the day (mean 0.667 against the
+20/30 base rate).
+
+### The effect is large, and it is not team quality
+
+Per-game return hazard, by the team's position on the day:
+
+| | rows | spells | P(plays next game) |
+|---|---|---|---|
+| clinched a play-in place | 2,980 | 1,031 | **0.262** |
+| in contention | 27,017 | 5,283 | 0.152 |
+| mathematically eliminated | 3,006 | 650 | **0.084** |
+
+A 3.1× spread. The control that rules out the boring explanations is the
+season half. For rotation players within the same diagnosis, the gap between
+high-hope and low-hope teams is **+0.008 early in the season** — nothing,
+over 3,650 rows — and **+0.268 late**. Difference-in-differences
+**+0.260 [+0.224, +0.295]**, and it excludes zero for every diagnosis
+separately (`reports/incentive_did.csv`):
+
+| diagnosis | gap early | gap late | DiD | 95% CI |
+|---|---|---|---|---|
+| soreness | +0.057 | +0.377 | **+0.321** | [+0.228, +0.409] |
+| injury management | +0.107 | +0.370 | +0.263 | [+0.103, +0.424] |
+| contusion | +0.014 | +0.239 | +0.225 | [+0.105, +0.341] |
+| strain | +0.005 | +0.124 | +0.119 | [+0.032, +0.207] |
+| sprain | +0.049 | +0.153 | +0.103 | [+0.030, +0.177] |
+
+Worse medical staff, more fragile rosters or a different injury mix on bad
+teams would all show up in the early season too. None of them do.
+
+The event study around mathematical elimination agrees but is low-powered:
+flat at ~0.13 beforehand, falling to 0.06 after, a shift of
+**−0.039 [−0.057, −0.023]**. It is smaller than the DiD because elimination
+arrives so late that most of the response has already happened as hope
+faded. (At one-game resolution the pre-period looks like it is already
+declining; that is noise, and it disappears at a readable bucket width.)
+
+### The 2023-24 Player Participation Policy narrowed it
+
+| regime | P(return \| high hope) | P(return \| low hope) | gap | 95% CI |
+|---|---|---|---|---|
+| pre-policy, 2021-23 | 0.477 | 0.150 | 0.326 | [+0.277, +0.376] |
+| post-policy, 2023-26 | 0.412 | 0.174 | 0.238 | [+0.201, +0.274] |
+
+Low-hope teams return players more often after the policy (0.150 → 0.174),
+which is the direction the rule intended. The gap narrowed by about a third
+and did not close. The 2019 lottery reform is not testable here: it predates
+the injury report entirely.
+
+### De-biasing the duration tables
+
+Rather than classify spells — there is no label for "tanking injury" and the
+injury is almost always real — the hazard is fitted with the incentive
+features and then evaluated twice per spell: at the team's actual position,
+and at a neutral one (in contention, neither eliminated nor clinched). The
+difference is a per-spell *discretion score*.
+
+| situation when ruled out | spells | pred games, as observed | at neutral urgency | difference |
+|---|---|---|---|---|
+| already eliminated | 458 | 18.09 | 9.51 | **+8.58 games (+19.5 days)** |
+| hope < 0.25 | 1,474 | 10.12 | 7.87 | +2.24 |
+| hope 0.25-0.75 | 888 | 12.92 | 12.56 | +0.36 |
+| hope > 0.75 | 3,916 | 8.03 | 8.39 | −0.36 |
+
+Across all 6,736 spells the de-biasing is worth +0.91 games on average, but
+it is concentrated exactly where it should be — **you cannot tank an ACL**:
+
+| ailment | as observed | neutral | difference |
+|---|---|---|---|
+| rupture / tear | 45.56 | 45.34 | +0.22 |
+| surgery | 34.59 | 34.58 | 0.00 |
+| fracture | 26.76 | 26.84 | −0.08 |
+| tendinopathy | 11.16 | 9.66 | **+1.50** |
+| soreness | 7.94 | 6.70 | **+1.24** |
+| sprain | 11.79 | 10.63 | +1.16 |
+| contusion | 6.43 | 5.42 | +1.01 |
+
+The severe, non-discretionary diagnoses move by nothing. The soft-tissue and
+load-management ones move by 15-20% of their own duration. That pattern is a
+strong sign the measure is picking up discretion rather than noise.
+
+### It found a known tanking episode unprompted
+
+The highest discretion scores in the sample include Kyrie Irving (+24.4
+games), Tim Hardaway Jr. (+22.9) and Maxi Kleber (+14.7), all filed out by
+Dallas on **2023-04-07** — the night Dallas sat its starters with a draft
+pick at stake, and was fined by the league for it. Nothing in the model knows
+about that episode, or about tanking; it only knows the team was out of
+contention and the diagnoses were soft.
+
+### It does not improve prediction
+
+This is the part worth being blunt about. Adding the incentive features to
+the model changes held-out accuracy by nothing:
+
+| | log loss | AUC | C-index | log loss (late) | AUC (late) |
+|---|---|---|---|---|---|
+| without incentive | 0.3170 | 0.8534 | 0.7409 | 0.3879 | 0.8756 |
+| with incentive | 0.3166 | 0.8539 | 0.7405 | 0.3891 | 0.8731 |
+
+Not even late in the season, where the whole effect lives. The reason is that
+`team_win_pct_before`, `season_progress` and `team_regular_remaining` were
+already in the feature set and already proxy the incentive well enough for
+forecasting. What the explicit measure buys is **interpretation** — the
+ability to state what an injury costs at ordinary urgency, and to attribute
+the remainder — not accuracy. I expected a modest gain here and got none.
+
+### Limitations of this section
+
+- **97 of the top 100 discretion scores are censored spells** with a mean of
+  3.9 games missed. The measure is overwhelmingly detecting end-of-season
+  shutdowns, which is the dominant form of the behaviour but a narrow window,
+  and the counterfactual is never observed in those cases.
+- **The neutral prediction is a model output, not a measurement.** It is only
+  as good as the exclusion restriction, and the restriction is credible rather
+  than proven.
+- **High hope and low hope are not symmetric.** A contending team rushing a
+  player back is as much a decision as a tanking team holding one out, and the
+  "neutral" reference sits between them by construction, not by evidence about
+  what is medically correct.
+- **Elimination is defined on the play-in**, so it says nothing about teams
+  manoeuvring for seeding inside the top ten.
 
 ---
 
@@ -389,5 +540,6 @@ Reasonable alternatives would move the numbers somewhat. The rules are in
 | `nba_injury/models.py` | baselines, hazard models, censoring-blind contrast |
 | `nba_injury/evaluate.py` | C-index, horizon metrics, calibration |
 | `nba_injury/experiment.py` | feature sets and design matrices, shared by every script |
+| `nba_injury/standings.py` | daily standings, elimination dates, simulated playoff hope |
 | `nba_injury/forecast.py` | usable forecasts from a fitted model |
-| `scripts/01_build.py` … `05_forecast.py` | the pipeline, in order |
+| `scripts/01_build.py` … `07_debias.py` | the pipeline, in order |

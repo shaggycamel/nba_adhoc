@@ -1,0 +1,15 @@
+ailment_class,n,games_as_observed,games_neutral,delta,days_neutral
+rupture_tear,54,46.29,45.75,0.54,99.5
+surgery,126,34.39,34.09,0.3,73.9
+fracture,126,26.63,26.24,0.39,57.2
+recovery,98,21.97,21.58,0.39,46.2
+dislocation,44,20.84,20.55,0.29,44.8
+unknown,157,12.25,11.62,0.63,25.3
+strain,558,11.56,10.64,0.91,23.1
+sprain,1308,11.84,10.55,1.28,23.0
+tendinopathy,318,11.04,9.41,1.63,20.5
+soreness,1874,7.96,6.7,1.26,14.7
+concussion,71,6.7,5.87,0.83,12.6
+contusion,649,6.4,5.47,0.93,11.9
+illness,708,4.53,4.21,0.32,9.1
+management,626,4.26,3.56,0.7,7.7

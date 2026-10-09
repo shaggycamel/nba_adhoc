@@ -20,6 +20,8 @@ uv run python scripts/02_describe.py   # Kaplan-Meier duration by injury type
 uv run python scripts/03_models.py     # baselines vs hazard models, time splits
 uv run python scripts/04_explain.py    # ablations, importance, partial dependence
 uv run python scripts/05_forecast.py   # forecasts for the held-out season
+uv run python scripts/06_incentive.py  # does the team's playoff position move returns?
+uv run python scripts/07_debias.py     # separate injury duration from team decision
 ```
 
 `01_build.py` writes to `data/build/` (git-ignored); every later script reads
