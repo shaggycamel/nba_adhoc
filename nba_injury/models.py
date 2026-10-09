@@ -38,6 +38,9 @@ from .design import Design
 
 MAX_K = 100
 
+# Typical days between a team's games, used only to date the grid's final row.
+MEAN_GAP_DAYS = 2.3
+
 
 # --------------------------------------------------------------------------
 # Baselines
@@ -191,26 +194,88 @@ class HazardModel:
         return self._model.predict_proba(self._matrix(rows))[:, 1]
 
 
+# Horizons, in days, for the "will he be available by then" answers.
+DAY_HORIZONS = (7, 14, 21, 30, 60)
+
+
 def predict_from_grid(
     model: HazardModel, grid: pl.DataFrame, max_k: int = MAX_K
 ) -> pl.DataFrame:
-    """Turn per-(spell, k) hazards into per-spell duration summaries."""
+    """Turn per-(spell, k) hazards into per-spell duration summaries.
+
+    Reports duration in both games and days. Days are converted from the
+    per-game hazard using the team's real calendar rather than modelled
+    directly, because a player returns *for a game*, not on an arbitrary
+    Tuesday: gaps between games run from 1 to 7 days, so a daily hazard would
+    be mostly structural zeros dictated by the schedule. The conversion is
+    exact, not an average-gap approximation.
+
+    The arithmetic: a spell that misses exactly k games ends when the player
+    plays game k+1, so
+
+        P(misses exactly k) = S(k-1) - S(k)
+        days out            = date(game k+1) - date(first missed game)
+
+    and the grid already carries that date difference as
+    `days_missed_so_far`, shifted one row forward.
+    """
     h = model.hazard(grid)
-    g = grid.select("spell_id", "k").with_columns(pl.Series("h", h))
-    g = g.sort("spell_id", "k").with_columns(
-        (1.0 - pl.col("h").clip(1e-9, 1 - 1e-9)).log().cum_sum().over("spell_id").exp()
-        .alias("surv")
+    g = (
+        grid.select("spell_id", "k", "days_missed_so_far")
+        .with_columns(pl.Series("h", h))
+        .sort("spell_id", "k")
+        .with_columns(
+            (1.0 - pl.col("h").clip(1e-9, 1 - 1e-9)).log().cum_sum().over("spell_id")
+            .exp().alias("surv")
+        )
+        .with_columns(
+            pl.col("surv").shift(1, fill_value=1.0).over("spell_id").alias("surv_prev"),
+            # The date the player would be back if this is the last game missed.
+            pl.col("days_missed_so_far").shift(-1).over("spell_id")
+            .cast(pl.Float64).alias("return_days"),
+        )
+        .with_columns((pl.col("surv_prev") - pl.col("surv")).alias("p_return_here"))
     )
-    out = g.group_by("spell_id").agg(
+    # Past the last grid game the return date is unknown; carry the final gap
+    # so the last row still has a date to attribute its mass to.
+    g = g.with_columns(
+        pl.col("return_days").fill_null(
+            pl.col("days_missed_so_far").cast(pl.Float64) + MEAN_GAP_DAYS
+        )
+    )
+
+    aggs = [
         (1.0 + pl.col("surv").sum()).alias("pred_mean_games"),
         pl.col("k").filter(pl.col("surv") <= 0.5).min().alias("pred_median_games"),
         (1.0 - pl.col("surv").filter(pl.col("k") == 1).first()).alias("p_back_next_game"),
         (1.0 - pl.col("surv").filter(pl.col("k") == 3).first()).alias("p_back_within_3"),
         (1.0 - pl.col("surv").filter(pl.col("k") == 10).first()).alias("p_back_within_10"),
         pl.col("surv").filter(pl.col("k") == 20).first().alias("p_out_past_20"),
-    )
-    return out.with_columns(
-        pl.col("pred_median_games").fill_null(max_k + 1).cast(pl.Float64)
+        # Days. The mean adds the surviving tail at the last grid date, which
+        # makes it a lower bound for the few spells with mass beyond max_k.
+        (
+            (pl.col("p_return_here") * pl.col("return_days")).sum()
+            + pl.col("surv").last() * pl.col("return_days").last()
+        ).alias("pred_mean_days"),
+        pl.col("return_days").filter(pl.col("surv") <= 0.5).min().alias("pred_median_days"),
+    ]
+    aggs += [
+        pl.col("p_return_here").filter(pl.col("return_days") <= d).sum()
+        .alias(f"p_back_within_{d}d")
+        for d in DAY_HORIZONS
+    ]
+
+    out = g.group_by("spell_id").agg(aggs)
+    last_day = g.group_by("spell_id").agg(pl.col("return_days").max().alias("_last_day"))
+    return (
+        out.join(last_day, on="spell_id", how="left")
+        .with_columns(
+            pl.col("pred_median_games").fill_null(max_k + 1).cast(pl.Float64),
+            # No median inside the grid means more than half the mass is past
+            # its end; report the horizon rather than a silent null.
+            pl.col("pred_median_days").fill_null(pl.col("_last_day")),
+        )
+        .drop("_last_day")
     )
 
 
