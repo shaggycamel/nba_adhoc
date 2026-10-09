@@ -10,12 +10,18 @@ import polars as pl
 
 from . import features, hazard as hz, paths
 
-# Spell-level columns that collide with per-game columns on the hazard rows.
-_PER_GAME_DROP = [
+# Per-game columns whose names collide with a spell-level feature. The
+# per-game value is already summarised by the `*_now` and `*_changed` columns,
+# so the spell-level one wins and these are dropped before the join.
+_COLLIDING = [
     "body_region", "body_side", "ailment_class", "days_rest", "season_type",
-    "is_management", "is_recovery_stage", "is_surgical", "status_clean",
-    "reason_category", "team_games_next_14d", "game_date", "started_in_playoffs",
-    "beyond_season", "last_idx", "last_date", "team_game_idx",
+    "is_management", "is_recovery_stage", "is_surgical", "team_games_next_14d",
+]
+
+# Grid-only scaffolding, not features and not wanted downstream.
+_GRID_SCRATCH = [
+    "game_date", "started_in_playoffs", "beyond_season", "last_idx", "last_date",
+    "team_game_idx",
 ]
 
 
@@ -51,7 +57,7 @@ def load() -> dict[str, pl.DataFrame]:
 
 def hazard_design(rows: pl.DataFrame, feats: pl.DataFrame) -> pl.DataFrame:
     """Per-missed-game rows joined to their spell's index features."""
-    keep = [c for c in rows.columns if c not in _PER_GAME_DROP]
+    keep = [c for c in rows.columns if c not in _COLLIDING]
     spell_cols = ["spell_id", "season", "games_missed", "event"] + spell_feature_cols()
     spell_cols = list(dict.fromkeys(spell_cols))
     return rows.select(keep).drop(
@@ -66,5 +72,5 @@ def grid_design(
     grid = hz.build_prediction_grid(spells_feat, tctx, max_k=max_k)
     spell_cols = ["spell_id", "season", "games_missed", "event"] + spell_feature_cols()
     spell_cols = list(dict.fromkeys(spell_cols))
-    drop = [c for c in _PER_GAME_DROP if c in grid.columns]
+    drop = [c for c in _COLLIDING + _GRID_SCRATCH if c in grid.columns]
     return grid.drop(drop).join(spells_feat.select(spell_cols), on="spell_id", how="inner")

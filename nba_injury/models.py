@@ -157,7 +157,14 @@ class HazardModel:
         if self.kind == "lightgbm":
             import lightgbm as lgb
 
-            return lgb.LGBMClassifier(random_state=0, verbose=-1, n_jobs=-1, **self.params)
+            return lgb.LGBMClassifier(
+                random_state=0, verbose=-1, n_jobs=-1,
+                # Without these the multithreaded histogram build is not
+                # reproducible, and held-out log loss moves by enough
+                # between runs to flip the smallest ablation deltas.
+                deterministic=True, force_row_wise=True,
+                **self.params,
+            )
         raise ValueError(f"unknown kind {self.kind!r}")
 
     def _matrix(self, rows: pl.DataFrame) -> np.ndarray:
@@ -182,12 +189,6 @@ class HazardModel:
         if self._model is None:
             raise RuntimeError("fit first")
         return self._model.predict_proba(self._matrix(rows))[:, 1]
-
-    def feature_names(self) -> list[str]:
-        return list(self._names)
-
-    def matrix(self, rows: pl.DataFrame) -> np.ndarray:
-        return self._matrix(rows)
 
 
 def predict_from_grid(
@@ -246,7 +247,7 @@ class ObservedOnlyRegressor:
         extra = {"alpha": 0.5} if self.objective == "quantile" else {}
         self._model = lgb.LGBMRegressor(
             objective=self.objective, random_state=0, verbose=-1, n_jobs=-1,
-            **extra, **self.params,
+            deterministic=True, force_row_wise=True, **extra, **self.params,
         )
         self._model.fit(X, obs["games_missed"].to_numpy(), categorical_feature=self._cat_idx)
         return self

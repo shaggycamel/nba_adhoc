@@ -242,13 +242,3 @@ SPELL_START = ("injury",)
 # a rehab assignment, all without playing. Treating those as three separate
 # spells would shred long absences into short ones and bias every model low.
 SPELL_CONTINUE = ("injury", "reconditioning", "gleague")
-
-
-def is_spell_start(category: pl.Expr | None = None) -> pl.Expr:
-    cat = pl.col("reason_category") if category is None else category
-    return cat.is_in(list(SPELL_START))
-
-
-def is_spell_continue(category: pl.Expr | None = None) -> pl.Expr:
-    cat = pl.col("reason_category") if category is None else category
-    return cat.is_in(list(SPELL_CONTINUE))

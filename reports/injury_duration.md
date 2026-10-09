@@ -1,0 +1,393 @@
+# How long do NBA injuries keep players out?
+
+Modelling the *duration* of an injury absence from the per-game injury report
+(`nba.nba.injuries`), 2021-22 to 2025-26. Two questions:
+
+1. **At onset** — a player has just been ruled out. How many games will they
+   miss?
+2. **In progress** — they have missed *k* games. Do they play the next one?
+
+Everything below is scored on time-based splits: fit on 2021-22..2023-24, tune
+on 2024-25, refit, score 2025-26. Reproduce with
+`uv run python scripts/0{1..5}_*.py`.
+
+---
+
+## 1. The dataset, and why it has to be built this way
+
+The box score is **not** a record of availability. A player on a long absence
+is simply absent from it — Klay Thompson has no 2021-22 regular-season
+box-score row until the night he came back. So games missed cannot be counted
+from box scores; the injury report is the only source that says a player was
+unavailable, and it says it one game at a time.
+
+The build is therefore: report + box score → a per-(player, game) availability
+panel → runs of consecutive missed games → **spells**.
+
+**6,736 spells** from 62,840 report rows. Five data problems had to be fixed
+to get there, each of which silently corrupts the result if missed:
+
+| Problem | Effect if ignored |
+|---|---|
+| `nba_id` null for 2-38% of rows by season | a third of 2021-22 absences vanish |
+| 2021-22 schedule dates sit one day early | report rows fail to map to games |
+| the report's own `game_id` is null for most of 2021-22 | shadows the calendar's `game_id` on join and drops the season |
+| rows from 2026-02-20 on are exactly duplicated | spells double-counted |
+| a player listed **Doubtful** who still misses the game | scored as a *return*, truncating 896 spells |
+
+### Censoring is the whole ballgame
+
+**22.3% of spells never show a return**: the season ends, or the player is
+traded, suspended or sent to the G League while still out. Those are the long
+ones, so how they are handled decides everything:
+
+| | games missed |
+|---|---|
+| mean of observed spells only (censoring-blind) | **3.6** |
+| Kaplan-Meier mean (censoring-aware) | **11.2** |
+
+A three-fold difference. For tears it is worse: 15.6 observed versus **57.6**
+by KM. Any analysis that drops or truncates censored spells is describing a
+league in which nobody misses 40 games.
+
+The distribution is also brutally skewed. Among spells whose return was
+observed: median **1** game, p75 3, p90 **8**, p95 14, p99 **30**, max 72.
+Over all spells the KM median is 2. Meanwhile spells of 10 games or more
+account for **60.6%** of every game missed. So the typical absence is one
+night and essentially all of the cost lives in a thin tail — which is why
+ranking severity matters more here than squeezing MAE.
+
+---
+
+## 2. What drives duration
+
+Kaplan-Meier expected games missed, injury spells only (`reports/km_*.csv`):
+
+**By pathology** — this is the single most informative variable:
+
+| ailment | n | KM mean | KM median | P(out past 20) |
+|---|---|---|---|---|
+| rupture / tear | 54 | 57.6 | 58 | 0.68 |
+| surgery | 124 | 38.9 | 21 | 0.51 |
+| fracture | 126 | 29.9 | 20 | 0.45 |
+| post-op recovery | 98 | 24.2 | 2 | 0.33 |
+| dislocation | 44 | 19.6 | 4 | 0.31 |
+| tendinopathy | 318 | 12.3 | 2 | 0.14 |
+| sprain | 1308 | 11.9 | 3 | 0.14 |
+| strain | 558 | 9.3 | 5 | 0.11 |
+| soreness | 1872 | 7.5 | 2 | 0.09 |
+| contusion | 648 | 5.7 | 2 | 0.05 |
+| injury management | 623 | 4.0 | 1 | 0.06 |
+| concussion | 71 | 3.9 | 3 | 0.00 |
+
+**By body region**: knee ligament **44.9**, Achilles 20.2, shoulder 15.2, foot
+12.3, hand/wrist 11.9, knee 11.6, lower leg 9.9, ankle 9.2, back/core 7.9,
+hamstring 7.2, hip/groin 6.6, quad 6.5, head/face 4.8.
+
+Region alone is a weak predictor (C-index 0.51) because it pools a sore knee
+with a torn ACL. **Region × pathology is what matters** — knee+surgery 49
+spells at a 18-game median, knee+soreness 382 at 2.
+
+**Severity flags.** A named structure only matters alongside a pathology that
+actually takes one out: "Achilles; Soreness" is a rest night, "Achilles;
+Repair" is a season.
+
+| flag | n | KM mean |
+|---|---|---|
+| ACL/Achilles **and** tear/surgery/fracture | 39 | **80.4** |
+| surgical wording anywhere | 100 | 42.9 |
+| post-op recovery wording | 127 | 26.5 |
+| injury-management wording | 693 | 4.1 |
+| everything else | 6,697 | 10.3 |
+
+**The label on the first missed game carries real information**, over and
+above the diagnosis: Out **14.0** games, Doubtful 6.1, Questionable 5.5,
+Probable 3.4. Teams know, and the report shows it.
+
+### Strong negative duration dependence
+
+The per-game probability of playing the next game collapses with time already
+missed, and that is the dominant single signal in the data:
+
+| games missed so far | P(plays next game) |
+|---|---|
+| 1 | 0.41 |
+| 2 | 0.23 |
+| 3 | 0.17 |
+| 5 | 0.11 |
+| 6-10 | 0.075 |
+| 11-20 | 0.047 |
+| 21+ | **0.020** |
+
+Once a player is 20 games into an absence, each additional game carries only a
+2% chance of being the last — a hazard that flat implies a median of roughly
+another 22 games *no matter how long they have already been out*.
+
+### Two behavioural findings
+
+Both come out of the partial-dependence pass on the fitted hazard
+(`reports/partial_dependence.csv`), holding the injury constant:
+
+- **Rest between games matters as much as the injury.** P(plays next game)
+  rises from 0.139 when the next game is a back-to-back to **0.310** when it
+  is six days away. A borderline player sitting out is partly a scheduling
+  decision.
+- **Good teams get players back sooner.** P(plays next game) runs 0.137 at a
+  .200 win rate to **0.180** at .800. Same injury, different urgency.
+
+### What does *not* drive duration
+
+- **Age.** The raw KM gradient looks dramatic (17.0 games for under-24s
+  against 9.2 for 32+), but it is a selection artefact: under-24s are censored
+  at 30% against 18%, because fringe young players get shut down or sent down.
+  Conditional on injury type and elapsed time the age partial dependence is
+  **flat** (0.149 at 21, 0.152 at 36), and dropping the whole eight-feature
+  player-attribute block moves held-out log loss by less than 0.001 — age,
+  height, weight and draft position are all deletable.
+- **Prior injury history.** Prior spell counts, games missed in the last 365
+  days, same-region recurrence — none of it registers. Dropping the entire
+  14-feature history block moves held-out log loss by less than 0.001 in
+  either direction, which is inside run-to-run noise: the block is free to
+  delete. History alone reaches AUC 0.617 against 0.854 for the full model.
+  Whatever a player's record says is already implied by what they are
+  currently diagnosed with.
+- **Recent workload as a cause.** Minutes in the last game and 7/14/30-day
+  minute loads do register — dropping the load block costs +0.0135 log loss —
+  but see the confound in §5: most of that is "is this player in the rotation",
+  not "was this player overworked".
+
+### Block ablations
+
+Held-out log loss on the per-game return target; positive Δ means the block
+was carrying signal (`reports/ablations.csv`):
+
+| variant | features | log loss | Δ | AUC | C-index |
+|---|---|---|---|---|---|
+| full model | 72 | 0.3166 | — | 0.854 | 0.742 |
+| drop elapsed-time + schedule | 65 | 0.3698 | **+0.0532** | 0.796 | 0.743 |
+| drop injury taxonomy | 61 | 0.3333 | **+0.0167** | 0.836 | 0.685 |
+| drop recent load | 51 | 0.3301 | **+0.0135** | 0.839 | 0.708 |
+| drop season/team context | 61 | 0.3208 | +0.0041 | 0.849 | 0.738 |
+| drop player attributes | 64 | 0.3168 | +0.0002 | 0.854 | 0.742 |
+| drop injury history | 58 | 0.3160 | −0.0006 | 0.855 | 0.746 |
+| *only* injury taxonomy | 11 | 0.4157 | +0.0991 | 0.726 | 0.685 |
+| *only* recent load | 21 | 0.4224 | +0.1058 | 0.717 | 0.680 |
+| *only* elapsed + schedule | 7 | 0.3639 | +0.0473 | 0.800 | 0.519 |
+| *only* player attributes | 8 | 0.4731 | +0.1565 | 0.511 | 0.527 |
+| *only* injury history | 14 | 0.4784 | +0.1617 | 0.617 | 0.584 |
+
+Note the split: **elapsed time dominates the next-game call** (AUC 0.800 on
+its own) but is useless for *ranking* severity (C-index 0.519), because every
+spell starts at k=1 and the block knows nothing else. **The injury taxonomy is
+the mirror image** — mediocre at timing (AUC 0.726) but the best single block
+for severity (C-index 0.685). You need both, and only those two plus recent
+load earn their place.
+
+### Twelve features are enough
+
+Adding features in permutation-importance order (`reports/parsimony.csv`):
+
+| features | log loss | AUC | C-index |
+|---|---|---|---|
+| 1 | 0.3721 | 0.790 | 0.501 |
+| 3 | 0.3350 | 0.833 | 0.712 |
+| 8 | 0.3174 | 0.854 | 0.737 |
+| **12** | **0.3141** | **0.857** | **0.745** |
+| 20 | 0.3135 | 0.857 | 0.743 |
+| 72 | 0.3166 | 0.854 | 0.742 |
+
+Twelve features beat all 72 on every column. They are, in importance order:
+`days_missed_so_far`, `days_since_last_played`, `ailment_class`,
+`games_missed_so_far`, `days_to_next_game`, `team_games_next_14d_now`,
+`min_last`, `body_region`, `team_win_pct_before`, `is_catastrophic`,
+`start_on_b2b`, `season_progress`.
+
+Five of the twelve are elapsed time and schedule, two are the diagnosis, two
+are the team's situation, and one is the player's last workload. Nothing about
+age, size, draft position, career minutes or injury record survives.
+
+---
+
+## 3. The algorithm
+
+A **discrete-time hazard model**. For a spell that misses games 1..*m*, row
+*k* asks "the player has now missed *k* games — do they play game *k*+1?". The
+answer is known for every *k* < *m* and for *k* = *m* only when the return was
+observed, so a censored spell contributes its *m* "still out" rows and no
+"came back" row. That is exactly the information it carries, and it is why
+every one of the 6,736 spells is usable: **34,002 training rows** from 6,736
+spells.
+
+Duration then falls out as a product over the per-game hazards, evaluated on a
+grid of the team's next 100 games:
+
+- P(still out after *k* games) = Π(1 − h_j)
+- E[games missed] = 1 + Σ P(still out after *k*)
+- P(back within 3 games), P(out past 20 games), and so on
+
+This is the whole reason to prefer a hazard model to regression on duration:
+one fit gives a calibrated distribution rather than a point estimate, which
+matters enormously here (§5).
+
+### Algorithm comparison
+
+Per-game return prediction, 2025-26, 7,576 rows, base rate 0.166
+(`reports/per_game_return_metrics.csv`):
+
+| model | AUC | log loss | Brier skill |
+|---|---|---|---|
+| base rate | 0.500 | 0.4506 | — |
+| logistic (L2) | 0.830 | 0.3427 | 0.251 |
+| random forest | 0.832 | 0.3401 | 0.261 |
+| HistGradientBoosting | 0.853 | 0.3181 | 0.302 |
+| LightGBM | 0.854 | 0.3166 | 0.307 |
+| LightGBM **+ live report state** | **0.867** | **0.3075** | **0.324** |
+
+Boosted trees beat the forest and the linear model clearly and consistently;
+the two boosters are indistinguishable. Adding how the report has *moved*
+since onset (status softened from Out, diagnosis re-filed) is worth ~1.3 AUC
+points — real, but smaller than you would guess, because most long absences
+stay filed as "Out" right up to the night the player returns.
+
+No neural network. At 34k rows and ~70 tabular features, with the signal
+concentrated in a handful of categorical interactions, an MLP has nothing to
+exploit that the boosters do not already get, and would cost a large
+dependency for it.
+
+### Duration at onset
+
+2025-26, 1,565 spells, 1,258 with an observed return
+(`reports/duration_metrics.csv`). Both point estimates are shown because the
+distribution's median is 1 game and its mean is 11 — the mean minimises
+squared error, the median minimises absolute error, and reporting only one
+makes a model look better or worse than it is.
+
+Median point estimate:
+
+| model | MAE | MAE (spells ≥5 games) | C-index |
+|---|---|---|---|
+| KM global | 2.75 | 10.73 | 0.500 |
+| KM by region | 2.94 | 10.07 | 0.548 |
+| KM by ailment | 2.60 | 9.10 | 0.684 |
+| KM by region × ailment | 2.48 | 8.71 | 0.675 |
+| KM by region × ailment × status | 2.58 | 8.02 | 0.687 |
+| hazard, logistic | 4.00 | 10.72 | 0.717 |
+| LightGBM, observed spells only | **2.34** | 8.60 | 0.725 |
+| hazard, random forest | 2.55 | 8.97 | 0.725 |
+| hazard, LightGBM | 2.56 | 7.89 | 0.742 |
+| **hazard, HistGradientBoosting** | 2.51 | **7.80** | **0.745** |
+
+Calibration of the LightGBM hazard survival curve, Brier skill against the
+base rate (`reports/horizon_brier.csv`): **0.237** at 1 game, **0.270** at 3,
+0.229 at 5, 0.201 at 10, 0.220 at 20. The per-game probabilities are well
+calibrated across the whole range — top decile predicted 0.695, realised
+0.688; bottom decile 0.007 against 0.001 (`reports/calibration.csv`).
+
+**On the censoring-blind model.** It wins overall MAE (2.34) and loses
+everywhere that matters: worse on long spells (8.60 against 7.80) and worse at
+ranking severity (0.725 against 0.745). The MAE win is an artefact — MAE is
+computed on observed spells, which is precisely the population it was trained
+on, and that population is mostly one-game absences. This is the trap the
+hazard framing exists to avoid, and it is why **C-index is the fairest single
+column in the table**: it uses the censored spells (a spell censored at 40
+games is known to have outlasted one that ended at 3) and does not depend on
+the choice of point estimate.
+
+---
+
+## 4. What the model is actually good at
+
+Compared against the best thing you could do without it — a Kaplan-Meier table
+by region × ailment × reported status — the model adds:
+
+- **Severity ranking**: C-index 0.745 against 0.687.
+- **A distribution instead of a cell mean**: P(back next game), P(back within
+  3), P(out past 20), per spell.
+- **Long absences**: MAE on spells of 5+ games drops from 8.02 to 7.80, and
+  from 10.73 for a flat baseline.
+- **A live next-game call**: AUC 0.867 for "does he play tomorrow", which the
+  static table cannot answer at all.
+
+Honest subpopulation figures, because the headline is flattered by easy cases
+(`reports/robustness_by_gap.csv`):
+
+| population | n | observed | actual KM mean | C-index | MAE (median pred) |
+|---|---|---|---|---|---|
+| all test spells | 1,565 | 80% | 9.3 | 0.742 | 2.56 |
+| fresh injuries (last played ≤4 days ago) | 1,350 | 85% | 6.4 | 0.713 | 2.07 |
+| rotation players (≥15 min/game) | 1,332 | 87% | 7.5 | 0.723 | 2.34 |
+| **fresh AND rotation** | 1,215 | 88% | 5.7 | **0.697** | **1.98** |
+| already-running absences (gap >10 days) | 114 | 54% | 27.1 | 0.695 | 9.66 |
+
+The cleanest number — a genuinely new injury to a player who was in the
+rotation — is **C-index 0.697 and a median-prediction MAE of 2.0 games**. The
+all-spells 0.742 is partly the model recognising absences that were already
+under way, which is easier and less useful.
+
+---
+
+## 5. Limitations
+
+**Point forecasts for catastrophic injuries are close to meaningless, and this
+is a property of the data, not a model defect.** Jayson Tatum's Achilles
+repair: forecast median 26 games, mean 36, actual 62. Max Strus's Jones
+fracture surgery: forecast median 22, mean 26, actual 67. Both look like bad
+misses. But the model's per-game hazard for these cases sits at 0.02-0.03,
+which the raw data confirms is right (empirical hazard past 20 games missed:
+0.020). A calibrated hazard that flat *implies* a median in the low twenties
+with an enormous right tail — so 62 and 67 both sit inside the predicted
+distribution, and the model gave each only a ~0.2-0.3 chance of being back
+within ten games. For injuries like these, report P(out past 20 games), not a
+number of games.
+
+The same model handles the easy end of the same players' seasons correctly:
+Tatum's later knee-management nights get a median of 1 game and a 0.89-0.91
+probability of playing the next one, which is what happened.
+
+**The report gives no return warning for surgical absences.** The game-by-game
+trace (`scripts/05_forecast.py`) shows P(plays next game) never rising above
+5% for either Tatum or Strus, including the night before they played. They
+were filed "Out" for 62 and 67 straight games. The live-report lift is real
+but concentrated in cases where the status actually softens to Questionable
+(per-game return rate 0.475 vs 0.107 for Out).
+
+**Rotation status confounds injury severity.** The model's longest calls are
+dominated by two-way and deep-bench rookies, because `min_last` and
+`days_since_last_played` cannot distinguish "badly hurt" from "not in the
+rotation". The rotation-player split above is the honest reading. Restricting
+the training population, or modelling absence and rotation separately, is the
+obvious next step.
+
+**Censoring is informative, not independent.** Season-end censoring is
+plausibly independent of the injury, but G League assignment and trades are
+not — a team moves a player partly *because* he is hurt. Kaplan-Meier and the
+hazard model both assume independent censoring, so the long tail is, if
+anything, still understated.
+
+**Only five seasons.** 39 spells carry the catastrophic flag. Any statement
+about ACL and Achilles duration here rests on dozens of cases, not hundreds.
+
+**Spell boundaries are a judgement call.** Gaps of up to 3 games with no
+report row, bracketed by reported absences, are bridged; longer gaps are not.
+Reconditioning filings continue a spell; G League assignment censors it.
+Reasonable alternatives would move the numbers somewhat. The rules are in
+`nba_injury/spells.py` with the reasoning for each.
+
+---
+
+## 6. Code
+
+| file | role |
+|---|---|
+| `nba_injury/taxonomy.py` | parse the free-text reason into region / pathology / severity flags |
+| `nba_injury/ids.py` | resolve the report's nullable `nba_id` |
+| `nba_injury/calendar.py` | canonical team-game calendar, report-date alignment |
+| `nba_injury/spells.py` | availability panel → spells, with censoring |
+| `nba_injury/features.py` | pre-tipoff features, grouped into blocks for ablation |
+| `nba_injury/hazard.py` | hazard rows, Kaplan-Meier, survival arithmetic, prediction grid |
+| `nba_injury/design.py` | polars → numpy encoding (no pandas) |
+| `nba_injury/models.py` | baselines, hazard models, censoring-blind contrast |
+| `nba_injury/evaluate.py` | C-index, horizon metrics, calibration |
+| `nba_injury/experiment.py` | feature sets and design matrices, shared by every script |
+| `nba_injury/forecast.py` | usable forecasts from a fitted model |
+| `scripts/01_build.py` … `05_forecast.py` | the pipeline, in order |

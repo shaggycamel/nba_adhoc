@@ -1,0 +1,10 @@
+n_features,log_loss,auc,c_index,mae_median_pred,newest_feature
+1,0.3721,0.7895,0.5008,2.75,days_missed_so_far
+2,0.3532,0.8155,0.6301,2.797,days_since_last_played
+3,0.335,0.8333,0.7119,2.537,ailment_class
+5,0.3294,0.8405,0.7097,2.631,team_games_next_14d_now
+8,0.3176,0.8535,0.7378,2.506,body_region
+12,0.3151,0.8565,0.7384,2.53,min_30d
+20,0.3133,0.8578,0.7383,2.521,is_illness
+30,0.3142,0.8566,0.7324,2.48,prior_games_missed_same_region
+72,0.3171,0.8536,0.741,2.566,(all)

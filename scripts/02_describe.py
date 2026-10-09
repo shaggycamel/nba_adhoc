@@ -99,11 +99,15 @@ def main() -> None:
     print("=" * 72)
     print("MODIFIERS")
     print("=" * 72)
+    # is_catastrophic is the conjunction of structure and pathology, so it is
+    # derived in `features` rather than carried on the raw spell.
+    inj_f = feats.filter(pl.col("index_category") == "injury")
     mods = []
     for col in ["is_surgical", "is_recovery_stage", "is_management",
-                "is_bone_stress", "is_catastrophic"]:
+                "is_bone_stress", "mentions_major_structure", "is_catastrophic"]:
+        src = inj_f if col == "is_catastrophic" else inj
         for val in (True, False):
-            g = inj.filter(pl.col(col) == val)
+            g = src.filter(pl.col(col) == val)
             if g.height < MIN_N:
                 continue
             dd, ee = g["games_missed"].to_numpy(), g["event"].to_numpy()

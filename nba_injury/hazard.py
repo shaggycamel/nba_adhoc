@@ -213,17 +213,6 @@ def survival_from_hazards(h: np.ndarray) -> np.ndarray:
     return np.cumprod(1.0 - np.clip(h, 1e-9, 1 - 1e-9))
 
 
-def expected_games_from_hazards(h: np.ndarray) -> float:
-    """E[games missed] = 1 + sum_k P(still out after k games)."""
-    return float(1.0 + survival_from_hazards(h).sum())
-
-
-def median_games_from_hazards(h: np.ndarray) -> float:
-    s = survival_from_hazards(h)
-    idx = np.where(s <= 0.5)[0]
-    return float(idx[0] + 1) if len(idx) else float(len(s) + 1)
-
-
 # --------------------------------------------------------------------------
 # Metrics
 # --------------------------------------------------------------------------

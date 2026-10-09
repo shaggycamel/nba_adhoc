@@ -1,8 +1,40 @@
 # nba_adhoc
 
-Ad hoc NBA analysis, aimed at predicting player usage (`usg_pct`) for a player's
-next upcoming game using only information known before tip-off. See `CLAUDE.md`
-for the project rules (Python + `uv`, `polars`, read-only database access).
+Ad hoc NBA analysis. See `CLAUDE.md` for the project rules (Python + `uv`,
+`polars`, read-only database access).
+
+Two threads:
+
+- **Player usage** — predicting `usg_pct` for a player's next game using only
+  information known before tip-off.
+- **Injury duration** (`nba_injury/`) — predicting how many games an injury
+  keeps a player out, and which variables drive it. Findings in
+  [`reports/injury_duration.md`](reports/injury_duration.md).
+
+## Injury duration
+
+```sh
+uv sync
+uv run python scripts/01_build.py      # report + box score -> injury spells
+uv run python scripts/02_describe.py   # Kaplan-Meier duration by injury type
+uv run python scripts/03_models.py     # baselines vs hazard models, time splits
+uv run python scripts/04_explain.py    # ablations, importance, partial dependence
+uv run python scripts/05_forecast.py   # forecasts for the held-out season
+```
+
+`01_build.py` writes to `data/build/` (git-ignored); every later script reads
+from there. Summary tables land in `reports/`.
+
+The approach, in one paragraph: the box score does not record availability — a
+player on a long absence is simply missing from it — so games missed have to
+be counted from the per-game injury report instead. That gives player injury
+*spells*, 22% of which never show a return because the season ends or the
+player is traded or sent down. Those are the long ones, so they are kept as
+right-censored rather than dropped: the Kaplan-Meier mean absence is 11.2
+games against 3.6 for a censoring-blind average of observed spells. A
+discrete-time hazard model over per-missed-game rows then uses every spell,
+and the product of its per-game hazards gives expected games missed and
+P(back within k games).
 
 ## Data
 

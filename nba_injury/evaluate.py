@@ -25,22 +25,9 @@ import polars as pl
 from scipy.stats import spearmanr
 from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score
 
-from . import hazard as hz, paths
+from . import hazard as hz
 
 HORIZONS = (1, 3, 5, 10, 20)
-
-
-def split_by_season(df: pl.DataFrame, seasons: list[str]) -> pl.DataFrame:
-    return df.filter(pl.col("season").is_in(seasons))
-
-
-def expanding_season_folds(
-    seasons: list[str], min_train: int = 2
-) -> list[tuple[list[str], str]]:
-    """(train seasons, scored season) pairs, each training only on the past."""
-    return [
-        (seasons[:i], seasons[i]) for i in range(min_train, len(seasons))
-    ]
 
 
 def duration_metrics(
@@ -149,8 +136,3 @@ def calibration_table(y: np.ndarray, p: np.ndarray, bins: int = 10) -> pl.DataFr
         )
         .sort("bin")
     )
-
-
-def write_table(df: pl.DataFrame, name: str) -> None:
-    out = paths.ensure_reports() / name
-    df.write_csv(out)

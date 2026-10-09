@@ -118,13 +118,3 @@ def game_calendar(verbose: bool = False) -> pl.DataFrame:
         )
     )
     return cal
-
-
-def team_games_per_season(cal: pl.DataFrame) -> pl.DataFrame:
-    """Last scheduled game per (team, season) — the right-censoring boundary."""
-    return cal.group_by("team_slug", "season").agg(
-        pl.col("team_game_idx").max().alias("last_team_game_idx"),
-        pl.col("game_date").max().alias("last_game_date"),
-        pl.col("team_game_idx").filter(pl.col("season_type") == "Regular Season")
-        .max().alias("last_regular_idx"),
-    )
