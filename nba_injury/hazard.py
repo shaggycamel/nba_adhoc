@@ -50,6 +50,8 @@ TIME_VARYING = [
     "next_is_b2b",
     "team_games_next_14d_now",
     "in_playoffs_now",
+    "hope_now",
+    "eliminated_now",
 ]
 
 
@@ -131,6 +133,11 @@ def attach_schedule_density(rows: pl.DataFrame, tctx: pl.DataFrame) -> pl.DataFr
     pushed per-game AUC to 0.98 and made the rolled-forward duration
     predictions useless, because a real schedule never contains the sentinel.
     """
+    incentive_now = tctx.select(
+        "season", "game_id", "team_slug",
+        pl.col("playin_probability").alias("hope_now"),
+        pl.col("eliminated").alias("eliminated_now"),
+    )
     next_gap = tctx.select(
         "season", "team_slug",
         (pl.col("team_game_idx") - 1).alias("team_game_idx"),
@@ -146,6 +153,7 @@ def attach_schedule_density(rows: pl.DataFrame, tctx: pl.DataFrame) -> pl.DataFr
             how="left",
         )
         .join(next_gap, on=["season", "team_slug", "team_game_idx"], how="left")
+        .join(incentive_now, on=["season", "game_id", "team_slug"], how="left")
         .with_columns(
             pl.col("team_games_next_14d_now").fill_null(0),
             # Only the team's final game of a season has no successor. Filling
@@ -309,6 +317,7 @@ def build_prediction_grid(
         "spell_id", "season", pl.col("team_slug_start").alias("team_slug"),
         "start_team_game_idx", "start_date",
         (pl.col("start_season_type") == "Playoffs").alias("started_in_playoffs"),
+        "hope_at_onset", "eliminated_at_onset",
     )
     regular = tctx.filter(pl.col("season_type") == "Regular Season").select(
         "season", "team_slug", "team_game_idx", "game_date", "days_rest",
@@ -367,6 +376,12 @@ def build_prediction_grid(
     # The report-state columns are frozen at their value on the first missed
     # game: ruled Out, nothing re-filed, nothing softened yet.
     return grid.with_columns(
+        # Frozen at the first missed game: at onset nobody knows how the
+        # team's season will turn. Overriding these two is how the de-biased
+        # ("what would this injury cost at neutral urgency") prediction is
+        # produced -- see scripts/07_debias.py.
+        pl.col("hope_at_onset").alias("hope_now"),
+        pl.col("eliminated_at_onset").alias("eliminated_now"),
         pl.lit(True).alias("status_now_out"),
         pl.lit(False).alias("status_now_doubtful"),
         pl.lit(False).alias("status_now_questionable"),

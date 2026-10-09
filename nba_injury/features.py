@@ -16,7 +16,7 @@ from __future__ import annotations
 import polars as pl
 
 from . import calendar as cal_mod
-from . import paths
+from . import paths, standings
 
 POSITION_GROUPS = {
     "Guard": "guard",
@@ -183,11 +183,23 @@ def team_context() -> pl.DataFrame:
     cal = cal.join(ahead, on=["season", "team_slug", "team_game_idx"], how="left")
     cal = cal.with_columns(pl.col("team_games_next_14d").fill_null(0))
 
+    # Team incentive, from the standings on the day. Win percentage is a
+    # smooth proxy that confounds quality with incentive; playoff hope is the
+    # quantity a front office actually responds to.
+    inc = standings.playin_probability().select(
+        "season", "game_date", "team_slug", "playin_probability", "playin_stakes",
+        "eliminated", "clinched_playin", "games_since_elimination",
+        "wins_vs_playin_line",
+    )
+    cal = cal.join(inc, on=["season", "game_date", "team_slug"], how="left")
+
     return cal.select(
         "season", "game_id", "team_slug", "team_game_idx", "game_date", "season_type",
         "days_rest", "home", "opp_slug",
         "team_games_before", "team_win_pct_before", "team_regular_remaining",
         "team_regular_total", "team_games_next_14d",
+        "playin_probability", "playin_stakes", "eliminated", "clinched_playin",
+        "games_since_elimination", "wins_vs_playin_line",
     )
 
 
@@ -291,7 +303,14 @@ def build_index_features(spells: pl.DataFrame) -> pl.DataFrame:
     )
 
     df = df.join(
-        tctx.drop("game_date", "season_type"),
+        tctx.drop("game_date", "season_type").rename({
+            "playin_probability": "hope_at_onset",
+            "playin_stakes": "stakes_at_onset",
+            "eliminated": "eliminated_at_onset",
+            "clinched_playin": "clinched_at_onset",
+            "games_since_elimination": "games_since_elim_at_onset",
+            "wins_vs_playin_line": "wins_vs_playin_at_onset",
+        }),
         left_on=["season", "start_game_id", "team_slug_start"],
         right_on=["season", "game_id", "team_slug"],
         how="left",
@@ -355,6 +374,14 @@ BLOCKS: dict[str, list[str]] = {
         "prior_spells_365d", "days_since_prior_spell", "prior_spell_games",
         "prior_same_region_games", "days_since_same_region",
         "is_quick_recurrence", "is_immediate_reaggravation",
+    ],
+    # Kept separate from `context` on purpose: the question "how much of a
+    # published duration is medicine and how much is the team's situation"
+    # only has an answer if the two are separable in the ablation.
+    "incentive": [
+        "hope_at_onset", "stakes_at_onset", "eliminated_at_onset",
+        "clinched_at_onset", "games_since_elim_at_onset",
+        "wins_vs_playin_at_onset",
     ],
     "context": [
         "season_progress", "start_month", "starts_in_playoffs",
