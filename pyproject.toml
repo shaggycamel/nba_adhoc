@@ -1,6 +1,8 @@
 [project]
 name = "nba-adhoc"
 version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
@@ -8,19 +10,13 @@ dependencies = [
     "polars>=1.44.2",
     "pyarrow>=25.0.1",
     "scikit-learn>=1.9.1",
+    "scs-hub",
 ]
 
 [dependency-groups]
 export = [
     "psycopg[binary]>=3.3.6",
 ]
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "sports-hub",
-]
 
 [tool.uv.sources]
-sports-hub = { git = "https://github.com/shaggycamel/sports-hub.git" }
-
+scs-hub = { git = "https://github.com/shaggycamel/scs.scs_hub.git" }

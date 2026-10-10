@@ -1,7 +1,7 @@
 import polars as pl
-import sports_hub
+import scs_hub
 
-hub = sports_hub.SportsHub(db_con='postgres')
+hub = scs_hub.SportsHub(db_con='postgres')
 df_tables = hub.db.read("""
     select *
     from information_schema.tables
