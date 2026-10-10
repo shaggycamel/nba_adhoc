@@ -1,4 +1,4 @@
-# nba_adhoc
+# scs.nba.mod.scratch
 
 Ad hoc NBA analysis, aimed at predicting player usage (`usg_pct`) for a player's
 next upcoming game using only information known before tip-off. See `CLAUDE.md`

@@ -1,4 +1,4 @@
-# nba_adhoc
+# scs.nba.mod.scratch
 
 Ad hoc NBA data analysis against the `nba` database on CockroachDB Cloud.
 
